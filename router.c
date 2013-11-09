@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
-#define MAX_PORTS 10
+#define MAX_PORTS 100
 
 void *serverRoutine(void* port){
     // Declarations
@@ -51,7 +51,7 @@ void *clientRoutine(void* port){
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
     char buffer[1000] = "Hello\n";
-    //printf("Client Port %i\n", *portID);
+    printf("Checking Port %i\n", *portID);
 
     // Socket initilization
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -75,7 +75,7 @@ void *clientRoutine(void* port){
     sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
     connected = !connected;
-    pthread_exit((void*) connected);
+    pthread_exit((void*) &connected);
 }
 
 int main(int argc, char** argv){
@@ -110,17 +110,13 @@ int main(int argc, char** argv){
             printf("<%c,%i,%c,%i,%i>\n", host, hostPort, client, clientPort, weight);
             // Checks to see if the port is open
             *(clientArg + threadCount * 4) = clientPort;
-            threadCount++;
-            pthread_create(&threads[threadCount], NULL, clientRoutine, (void *) (portArg + threadCount * 4));
-            printf("Before Join\n");
+            pthread_create(&threads[threadCount], NULL, clientRoutine, (void *) (clientArg + threadCount * 4));
             pthread_join(threads[threadCount], (void*)&status);
-            printf("After Join\n");
             threadCount++;
             // If not create the port
             if (!*status){
                 threadCount--;
                 *(portArg + threadCount * 4) = hostPort;
-                printf("hostport %i\n", hostPort);
                 pthread_create(&threads[threadCount], NULL, serverRoutine, (void *) (portArg + threadCount * 4));
                 threadCount++;
             }
@@ -128,7 +124,7 @@ int main(int argc, char** argv){
     }
 
 
-
+    printf("before cleanup\n");
     fclose(fp);
     free(line);
     free(portArg);
