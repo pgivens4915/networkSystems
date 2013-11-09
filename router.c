@@ -10,6 +10,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 
+#define MAX_PORTS 10
+
 void *serverRoutine(void* port){
     // Declarations
     struct sockaddr_in serverAddr;
@@ -20,7 +22,7 @@ void *serverRoutine(void* port){
     int size;
     int* portID = port;
     char buffer [1000];
-    printf("Host Port %i\n", *portID);
+    printf("Server Port %i\n", *portID);
 
     // Socket initilization
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -49,7 +51,7 @@ void *clientRoutine(void* port){
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
     char buffer[1000] = "Hello\n";
-    printf("Server Port %i\n", *portID);
+    //printf("Client Port %i\n", *portID);
 
     // Socket initilization
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -59,56 +61,78 @@ void *clientRoutine(void* port){
     serverAddr.sin_port = htons(*portID);
     
     // Waiting for a connection to occur 
-    while( connected != 0){
+    //while( connected != 0){
         connected = connect(sockfd, (struct sockaddr *)&serverAddr,
                             sizeof(serverAddr));
-        sleep(5);
+    //    sleep(5);
+    //}
+
+    // Sending message
+    if( connected != 0 ){
+        *portID = 0;
+        pthread_exit((void*) port);
     }
     sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
-
-    // Sending message
-    pthread_exit(NULL);
+    connected = !connected;
+    pthread_exit((void*) connected);
 }
 
 int main(int argc, char** argv){
     // Declarations
-    pthread_t threads[10];
+    pthread_t threads[MAX_PORTS];
     long t;
-    void* status;
+    int* status;
     char* routerID = argv[1];
     char host;
     char client;
-    int hostPort = 0;
-    int clientPort = 0;
+    int hostPort;
+    int clientPort;
+    int* portArg;
+    int* clientArg;
     int weight = 0;
+    int threadCount = 0;
     size_t length = 0;
     char * line = NULL;
     FILE *fp;
+
+    // Mallocing
+    portArg = (int*) malloc(sizeof(int) * MAX_PORTS);
+    clientArg = (int*) malloc(sizeof(int) * MAX_PORTS);
 
     // Opening the init file
     fp = fopen("init.txt", "r");
     while (getline(&line, &length, fp) != -1){
         // Assuming that the ID has one length only reads valid lines
         if(line[1] == routerID[0]){
-            sscanf("<%c,%i,%c,%i,%i>", &host, &hostPort, &client, &clientPort,
-                   &weight)
-            print
-            
+            sscanf(line, "<%c,%i,%c,%i,%i>", &host, &hostPort, &client, &clientPort,
+                   &weight);
+            printf("<%c,%i,%c,%i,%i>\n", host, hostPort, client, clientPort, weight);
+            // Checks to see if the port is open
+            *(clientArg + threadCount * 4) = clientPort;
+            threadCount++;
+            pthread_create(&threads[threadCount], NULL, clientRoutine, (void *) (portArg + threadCount * 4));
+            printf("Before Join\n");
+            pthread_join(threads[threadCount], (void*)&status);
+            printf("After Join\n");
+            threadCount++;
+            // If not create the port
+            if (!*status){
+                threadCount--;
+                *(portArg + threadCount * 4) = hostPort;
+                printf("hostport %i\n", hostPort);
+                pthread_create(&threads[threadCount], NULL, serverRoutine, (void *) (portArg + threadCount * 4));
+                threadCount++;
+            }
         }
     }
 
-    pthread_create(&threads[0], NULL, serverRoutine, (void *) &local);
-    pthread_create(&threads[1], NULL, clientRoutine, (void *) &client);
 
-    // Waiting for a join
-    pthread_join(threads[0], &status);
-    pthread_join(threads[1], &status);
 
     fclose(fp);
     free(line);
+    free(portArg);
     pthread_exit(NULL);
-    return(0);
-
+    return(0); 
 }
 
