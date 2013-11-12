@@ -12,6 +12,9 @@
 
 #define MAX_PORTS 100
 
+// Nasty global declarations
+pthread_mutex_t mutexsum;
+
 void *serverRoutine(void* port){
     // Declarations
     struct sockaddr_in serverAddr;
@@ -95,6 +98,9 @@ int main(int argc, char** argv){
     size_t length = 0;
     char * line = NULL;
     FILE *fp;
+    
+    // Initing mutex
+    pthread_mutex_init(&mutexsum, NULL);
 
     // Mallocing
     portArg = (int*) malloc(sizeof(int) * MAX_PORTS);
@@ -124,7 +130,8 @@ int main(int argc, char** argv){
     }
 
 
-    printf("before cleanup\n");
+    // Cleanup
+    pthread_mutex_destroy(&mutexsum);
     fclose(fp);
     free(line);
     free(portArg);
