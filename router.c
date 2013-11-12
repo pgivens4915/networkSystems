@@ -11,10 +11,45 @@
 #include <string.h>
 
 #define MAX_PORTS 100
+#define MAX_EDGES 100
+#define BUFFER_SIZE 1000
+
+// Structure creation
+struct Argument {
+    char name;
+    int port;
+};
+
+struct tableEntry {
+    char host;
+    char target;
+    int weight;
+    int fromPort;
+    int toPort;
+};
+
 
 // Nasty global declarations
 pthread_mutex_t mutexsum;
+int tableEntry = 0;
+struct tableEntry table[MAX_EDGES]; 
 
+void fillBuffer(char* buffer, char host){
+    int count = 0;
+    int i = 0;
+
+    // For each local link in the table
+    pthread_mutex_lock(&mutexsum);
+    for(i = 0; i < tableEntry; i++){
+        if(table[i].host == host){
+            // Copying a table entry into the buffer
+            memcpy((void*) (buffer + i * sizeof(struct tableEntry)), 
+                   (void*) &table[i], sizeof(tableEntry));
+        }
+    }
+    pthread_mutex_unlock(&mutexsum);
+
+}
 void *serverRoutine(void* port){
     // Declarations
     struct sockaddr_in serverAddr;
@@ -24,7 +59,7 @@ void *serverRoutine(void* port){
     int connfd;
     int size;
     int* portID = port;
-    char buffer [1000];
+    char buffer [BUFFER_SIZE];
     printf("Server Port %i\n", *portID);
 
     // Socket initilization
@@ -40,7 +75,7 @@ void *serverRoutine(void* port){
     connfd = accept(listenfd, (struct sockaddr *)&clientAddr, &clientLength); 
 
     // Receving message
-    size = recvfrom(connfd, buffer, 1000, 0,(struct sockaddr *)&clientAddr,
+    size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
                     &clientLength);
     printf("%s", buffer);
     pthread_exit(NULL);
@@ -53,7 +88,7 @@ void *clientRoutine(void* port){
     int connected = 1;
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
-    char buffer[1000] = "Hello\n";
+    char buffer[BUFFER_SIZE];
     printf("Checking Port %i\n", *portID);
 
     // Socket initilization
@@ -75,6 +110,7 @@ void *clientRoutine(void* port){
         *portID = 0;
         pthread_exit((void*) port);
     }
+    fillBuffer(&buffer, 'A');
     sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
     connected = !connected;
@@ -111,19 +147,36 @@ int main(int argc, char** argv){
     while (getline(&line, &length, fp) != -1){
         // Assuming that the ID has one length only reads valid lines
         if(line[1] == routerID[0]){
-            sscanf(line, "<%c,%i,%c,%i,%i>", &host, &hostPort, &client, &clientPort,
-                   &weight);
-            printf("<%c,%i,%c,%i,%i>\n", host, hostPort, client, clientPort, weight);
+            sscanf(line, "<%c,%i,%c,%i,%i>", &host, &hostPort, &client, 
+                   &clientPort, &weight);
+
+            printf("<%c,%i,%c,%i,%i>\n", host, hostPort, client, 
+                   clientPort, weight);
+
+            // Assigning a table entry
+            pthread_mutex_lock(&mutexsum);
+            table[threadCount].host = host;
+            table[threadCount].target = client;
+            table[threadCount].weight = weight;
+            table[threadCount].fromPort = hostPort;
+            table[threadCount].toPort = clientPort;
+            tableEntry++;
+            pthread_mutex_unlock(&mutexsum);
+
             // Checks to see if the port is open
             *(clientArg + threadCount * 4) = clientPort;
-            pthread_create(&threads[threadCount], NULL, clientRoutine, (void *) (clientArg + threadCount * 4));
+            pthread_create(&threads[threadCount], NULL, clientRoutine,
+                           (void *) (clientArg + threadCount * 4));
+
             pthread_join(threads[threadCount], (void*)&status);
             threadCount++;
             // If not create the port
             if (!*status){
                 threadCount--;
                 *(portArg + threadCount * 4) = hostPort;
-                pthread_create(&threads[threadCount], NULL, serverRoutine, (void *) (portArg + threadCount * 4));
+                pthread_create(&threads[threadCount], NULL, serverRoutine,
+                               (void *) (portArg + threadCount * 4));
+
                 threadCount++;
             }
         }
@@ -138,4 +191,5 @@ int main(int argc, char** argv){
     pthread_exit(NULL);
     return(0); 
 }
+
 
