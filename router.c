@@ -166,17 +166,17 @@ void *serverRoutine(void* argue){
             pthread_exit(NULL);
         }
         // If we have not seen this packet yet
+        pthread_mutex_lock(&mutexsum);
         if ((int)*(echoBuffer+bufferPoint) != 0){
             printf("sending echo from port %i\n", *portID);
-            pthread_mutex_lock(&mutexsum);
             sendto(connfd,  (echoBuffer + bufferPoint),
                    *(echoBuffer + bufferPoint),0, (struct sockaddr *)&clientAddr,
                    sizeof(clientAddr));
                    
             // Adding the size of the buffer
             bufferPoint = bufferPoint + *(echoBuffer + bufferPoint);
-            pthread_mutex_unlock(&mutexsum);
         }
+        pthread_mutex_unlock(&mutexsum);
     }
 
     //printf("Size %i\n", size);
@@ -192,8 +192,11 @@ void *clientRoutine(void* argue){
     int* portID = &(arg->port);
     int connected = 1;
     int size = 0;
+    int found;
+    int bufferPoint = 0;
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
+    int serverLength = sizeof(serverAddr);
     char buffer[BUFFER_SIZE];
     //printf("Checking Port %i\n", *portID);
 
@@ -211,13 +214,50 @@ void *clientRoutine(void* argue){
     //}
 
     // Sending message
+    // Exit if no connection avalible 
     if( connected != 0 ){
         *portID = 0;
         pthread_exit((void*) portID);
     }
+    // If we have connected
     size = fillBuffer(buffer, arg->name);
     sendto(sockfd, buffer, size, 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
+    for(;;){
+        size = recvfrom(sockfd,buffer, BUFFER_SIZE, 0, 
+                        (struct sockaddr*)&serverAddr, &serverLength);
+        // Check to see if a packet is new
+        found = checkPacket(buffer, size);
+        if(found){
+            printf("Client Seen\n");
+        }
+        else if (size > 0){
+            // Tell the other threads to send
+            echo(buffer, size);
+            // Move the buffer pointer the appropriate distance
+            pthread_mutex_lock(&mutexsum);
+            bufferPoint = bufferPoint + size;
+            pthread_mutex_unlock(&mutexsum);
+        }
+        else{
+            pthread_exit(NULL);
+        }
+
+        // If we have not seen this packet yet
+        pthread_mutex_lock(&mutexsum);
+        if ((int)*(echoBuffer+bufferPoint) != 0){
+            printf("sending echo from port %i\n", *portID);
+            sendto(sockfd,  (echoBuffer + bufferPoint),
+                    *(echoBuffer + bufferPoint), 0, 
+                    (struct sockaddr *)&serverAddr, sizeof(serverAddr));
+
+            // Adding the size of the buffer
+            bufferPoint = bufferPoint + *(echoBuffer + bufferPoint);
+        }
+        pthread_mutex_unlock(&mutexsum);
+    }
+
+    
     connected = !connected;
     pthread_exit((void*) &connected);
 }
