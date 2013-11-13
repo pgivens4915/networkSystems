@@ -44,7 +44,8 @@ void printBuffer(char* buffer){
     count = (int) *buffer;
     for(i = 0; i < count; i++){
         // Pulls the table entry out of memory
-        thisEntry = (struct tableEntry*) (buffer + 4 + (i * 16));
+        thisEntry = (struct tableEntry*) (buffer + 4 + 
+                    (i * sizeof(struct tableEntry)));
 
         printf("<%c,%i,%c,%i,%i>\n", thisEntry->host, thisEntry->fromPort,
                thisEntry->target, thisEntry->toPort, thisEntry->weight);
@@ -62,21 +63,19 @@ int fillBuffer(char* buffer, char host){
     pthread_mutex_lock(&mutexsum);
     for(i = 0; i < tableEntry; i++){
         if(table[i].host == host){
-            printf("sizeof %i\n", sizeof(tableEntry));
+            printf("sizeof %i\n", sizeof(struct tableEntry));
             //printf("tableInfo: %i\n", table[i].fromPort);
             count++;
             // Copying a table entry into the buffer the 4 is an int in the front
-            // For some reason sizeof returns 2 instead of 16, that is why 16 
-            // Is here, it is the sizeof the struct
-            memcpy((void*) (buffer + 4 + (i * 16)), 
-                   (void*) &(table[i]), 16);
+            memcpy((void*) (buffer + 4 + (i * sizeof(struct tableEntry))), 
+                   (void*) &(table[i]), sizeof(struct tableEntry));
 
         }
     }
     memcpy((void*) buffer, (void*) &count, sizeof(int));
     printBuffer(buffer);
     pthread_mutex_unlock(&mutexsum);
-    return (4 + count * 16);
+    return (4 + count * sizeof(struct tableEntry));
 
 }
 void *serverRoutine(void* port){
