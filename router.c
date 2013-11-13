@@ -13,6 +13,8 @@
 #define MAX_PORTS 100
 #define MAX_EDGES 100
 #define BUFFER_SIZE 1000
+#define true 1
+#define false 0
 
 // Structure creation
 struct Argument {
@@ -33,6 +35,7 @@ struct tableEntry {
 pthread_mutex_t mutexsum;
 int tableEntry = 0;
 struct tableEntry table[MAX_EDGES]; 
+int hashes[MAX_EDGES];
 
 void printBuffer(char* buffer){
     // Declarations
@@ -76,8 +79,31 @@ int fillBuffer(char* buffer, char host){
     printBuffer(buffer);
     pthread_mutex_unlock(&mutexsum);
     return (sizeof(int) + count * sizeof(struct tableEntry));
-
 }
+
+// Check to see if the packet is unique
+int checkPacket(char* buffer, int size){
+    // Declarations
+    int hashSum = 0;
+    int i = 0;
+    pthread_mutex_lock(&mutexsum);
+    // My lazy hash
+    for(i = 0; i < size; i = i + sizeof(int)){
+        hashSum = hashSum + (int) *(buffer + i);
+    }
+    // Checking to see if the hash exists
+    for(i = 0; i < MAX_EDGES && hashes[i] != 0; i++){
+        if(hashSum == hashes[i]){
+            // If we have already seen it, return true
+            return (true);
+        }
+    }
+    // Adding the hash
+    hashes[i] = hashSum;
+    pthread_mutex_unlock(&mutexsum);
+    return(false);
+}
+
 void *serverRoutine(void* argue){
     // Declarations
     struct sockaddr_in serverAddr;
@@ -87,6 +113,7 @@ void *serverRoutine(void* argue){
     int listenfd;
     int connfd;
     int size;
+    int found;
     int* portID = &(arg->port);
     char buffer [BUFFER_SIZE];
     // printf("Server Port %i\n", *portID);
@@ -106,6 +133,11 @@ void *serverRoutine(void* argue){
     // Receving message
     size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,
                     (struct sockaddr *)&clientAddr, &clientLength);
+    // Checks to see if a packet is new
+    found = checkPacket(buffer, size);
+    if(found){
+        printf("Already Seen\n");
+    }
 
     printf("Size %i\n", size);
     printBuffer(buffer);
@@ -136,7 +168,6 @@ void *clientRoutine(void* argue){
     //while( connected != 0){
         connected = connect(sockfd, (struct sockaddr *)&serverAddr,
                             sizeof(serverAddr));
-    //    sleep(5);
     //}
 
     // Sending message
@@ -144,7 +175,7 @@ void *clientRoutine(void* argue){
         *portID = 0;
         pthread_exit((void*) portID);
     }
-    size = fillBuffer(buffer, arg->name );
+    size = fillBuffer(buffer, arg->name);
     sendto(sockfd, buffer, size, 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
     connected = !connected;
@@ -172,6 +203,8 @@ int main(int argc, char** argv){
     
     // Initing mutex
     pthread_mutex_init(&mutexsum, NULL);
+    // Zeroing global
+    bzero(hashes, sizeof(int) * MAX_EDGES);
 
     // Mallocing
     portArg = (struct Argument*) malloc(sizeof(struct Argument) * MAX_PORTS);
