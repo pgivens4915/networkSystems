@@ -38,6 +38,7 @@ int tableEntry = 0;
 struct tableEntry table[MAX_EDGES]; 
 int hashes[MAX_EDGES];
 char echoBuffer[TOPOLOGY_SIZE];
+int echoBuffEnd = 0;
 
 void printBuffer(char* buffer){
     // Declarations
@@ -68,7 +69,7 @@ int fillBuffer(char* buffer, char host){
     pthread_mutex_lock(&mutexsum);
     for(i = 0; i < tableEntry; i++){
         if(table[i].host == host){
-            printf("sizeof %i\n", sizeof(struct tableEntry));
+            //printf("sizeof %i\n", sizeof(struct tableEntry));
             //printf("tableInfo: %i\n", table[i].fromPort);
             count++;
             // Copying a table entry into the buffer the 4 is an int in the front
@@ -107,8 +108,13 @@ int checkPacket(char* buffer, int size){
 }
 
 // Adds a packet to the buffer stack
-void echo(buffer, size){
-    printf("ECHO\n");
+void echo(char* buffer, int size){
+   pthread_mutex_lock(&mutexsum);
+   printf("Before mem size :%i\n", size);
+   memcpy((echoBuffer + echoBuffEnd), buffer, size);
+   printf("After mem\n");
+   echoBuffEnd = echoBuffEnd + size;
+   pthread_mutex_unlock(&mutexsum);
 }
 
 void *serverRoutine(void* argue){
@@ -147,7 +153,7 @@ void *serverRoutine(void* argue){
         if(found){
             printf("Already Seen\n");
         }
-        else if (size != 0){
+        else if (size > 0){
             // Tell the other threads to send
             echo(buffer, size);
             // Move the buffer pointer the appropriate distance
@@ -156,11 +162,12 @@ void *serverRoutine(void* argue){
             pthread_mutex_unlock(&mutexsum);
         }
         else {
-            printf("size = 0 \n");
+            //printf("size = 0 \n");
             pthread_exit(NULL);
         }
         // If we have not seen this packet yet
         if ((int)*(echoBuffer+bufferPoint) != 0){
+            printf("sending echo from port %i\n", *portID);
             pthread_mutex_lock(&mutexsum);
             sendto(connfd,  (echoBuffer + bufferPoint),
                    *(echoBuffer + bufferPoint),0, (struct sockaddr *)&clientAddr,
@@ -172,7 +179,7 @@ void *serverRoutine(void* argue){
         }
     }
 
-    printf("Size %i\n", size);
+    //printf("Size %i\n", size);
     printBuffer(buffer);
     // printf("%s", buffer);
     pthread_exit(NULL);
