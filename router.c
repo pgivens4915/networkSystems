@@ -54,7 +54,7 @@ void printBuffer(char* buffer){
 
 // Fills the buffer with a packet that states the number of entries followed by
 // some entries of the form struct tableEntry
-void fillBuffer(char* buffer, char host){
+int fillBuffer(char* buffer, char host){
     int count = 0;
     int i = 0;
 
@@ -66,6 +66,8 @@ void fillBuffer(char* buffer, char host){
             //printf("tableInfo: %i\n", table[i].fromPort);
             count++;
             // Copying a table entry into the buffer the 4 is an int in the front
+            // For some reason sizeof returns 2 instead of 16, that is why 16 
+            // Is here, it is the sizeof the struct
             memcpy((void*) (buffer + 4 + (i * 16)), 
                    (void*) &(table[i]), 16);
 
@@ -74,6 +76,7 @@ void fillBuffer(char* buffer, char host){
     memcpy((void*) buffer, (void*) &count, sizeof(int));
     printBuffer(buffer);
     pthread_mutex_unlock(&mutexsum);
+    return (4 + count * 16);
 
 }
 void *serverRoutine(void* port){
@@ -104,7 +107,7 @@ void *serverRoutine(void* port){
     size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,
                     (struct sockaddr *)&clientAddr, &clientLength);
 
-    // printf("What?\n");
+    printf("Size %i\n", size);
     printBuffer(buffer);
     // printf("%s", buffer);
     pthread_exit(NULL);
@@ -115,6 +118,7 @@ void *clientRoutine(void* port){
     int sockfd;
     int* portID = port;
     int connected = 1;
+    int size = 0;
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
     char buffer[BUFFER_SIZE];
@@ -139,8 +143,8 @@ void *clientRoutine(void* port){
         *portID = 0;
         pthread_exit((void*) port);
     }
-    fillBuffer(buffer, 'F');
-    sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
+    size = fillBuffer(buffer, 'F');
+    sendto(sockfd, buffer, size, 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
     connected = !connected;
     pthread_exit((void*) &connected);
