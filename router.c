@@ -44,7 +44,7 @@ void printBuffer(char* buffer){
     count = (int) *buffer;
     for(i = 0; i < count; i++){
         // Pulls the table entry out of memory
-        thisEntry = (struct tableEntry*) (buffer + 4 + 
+        thisEntry = (struct tableEntry*) (buffer + sizeof(int)+ 
                     (i * sizeof(struct tableEntry)));
 
         printf("<%c,%i,%c,%i,%i>\n", thisEntry->host, thisEntry->fromPort,
@@ -67,7 +67,7 @@ int fillBuffer(char* buffer, char host){
             //printf("tableInfo: %i\n", table[i].fromPort);
             count++;
             // Copying a table entry into the buffer the 4 is an int in the front
-            memcpy((void*) (buffer + 4 + (i * sizeof(struct tableEntry))), 
+            memcpy((void*) (buffer + sizeof(int) + (i * sizeof(struct tableEntry))), 
                    (void*) &(table[i]), sizeof(struct tableEntry));
 
         }
@@ -75,18 +75,19 @@ int fillBuffer(char* buffer, char host){
     memcpy((void*) buffer, (void*) &count, sizeof(int));
     printBuffer(buffer);
     pthread_mutex_unlock(&mutexsum);
-    return (4 + count * sizeof(struct tableEntry));
+    return (sizeof(int) + count * sizeof(struct tableEntry));
 
 }
-void *serverRoutine(void* port){
+void *serverRoutine(void* argue){
     // Declarations
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
+    struct Argument* arg = argue;
     int clientLength = sizeof(clientAddr);
     int listenfd;
     int connfd;
     int size;
-    int* portID = port;
+    int* portID = &(arg->port);
     char buffer [BUFFER_SIZE];
     // printf("Server Port %i\n", *portID);
 
@@ -112,10 +113,11 @@ void *serverRoutine(void* port){
     pthread_exit(NULL);
 }
 
-void *clientRoutine(void* port){
+void *clientRoutine(void* argue){
     // Declarations
+    struct Argument* arg = argue;
     int sockfd;
-    int* portID = port;
+    int* portID = &(arg->port);
     int connected = 1;
     int size = 0;
     struct sockaddr_in serverAddr;
@@ -140,9 +142,9 @@ void *clientRoutine(void* port){
     // Sending message
     if( connected != 0 ){
         *portID = 0;
-        pthread_exit((void*) port);
+        pthread_exit((void*) portID);
     }
-    size = fillBuffer(buffer, 'F');
+    size = fillBuffer(buffer, arg->name );
     sendto(sockfd, buffer, size, 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
     connected = !connected;
@@ -159,8 +161,9 @@ int main(int argc, char** argv){
     char client;
     int hostPort;
     int clientPort;
-    int* portArg;
-    int* clientArg;
+    struct Argument* portArg;
+    struct Argument* clientArg;
+    struct Argument newStruct;
     int weight = 0;
     int threadCount = 0;
     size_t length = 0;
@@ -171,8 +174,8 @@ int main(int argc, char** argv){
     pthread_mutex_init(&mutexsum, NULL);
 
     // Mallocing
-    portArg = (int*) malloc(sizeof(int) * MAX_PORTS);
-    clientArg = (int*) malloc(sizeof(int) * MAX_PORTS);
+    portArg = (struct Argument*) malloc(sizeof(struct Argument) * MAX_PORTS);
+    clientArg = (struct Argument*) malloc(sizeof(struct Argument) * MAX_PORTS);
 
     // Opening the init file
     fp = fopen("init.txt", "r");
@@ -196,18 +199,28 @@ int main(int argc, char** argv){
             pthread_mutex_unlock(&mutexsum);
 
             // Checks to see if the port is open
-            *(clientArg + threadCount * 4) = clientPort;
+            // Create the struct
+            newStruct.port = clientPort;
+            newStruct.name = line[1];
+            *(clientArg + threadCount * sizeof(struct Argument)) = newStruct;
+
             pthread_create(&threads[threadCount], NULL, clientRoutine,
-                           (void *) (clientArg + threadCount * 4));
+                    (void *) (clientArg + threadCount * 
+                            sizeof(struct Argument)));
 
             pthread_join(threads[threadCount], (void*)&status);
             threadCount++;
             // If not create the port
             if (!*status){
                 threadCount--;
-                *(portArg + threadCount * 4) = hostPort;
+                // Creating a structure with the host port and router ID
+                newStruct.port = hostPort;
+                newStruct.name = line[1];
+                *(portArg + threadCount * sizeof(struct Argument)) = newStruct;
+                
                 pthread_create(&threads[threadCount], NULL, serverRoutine,
-                               (void *) (portArg + threadCount * 4));
+                        (void *) (portArg + threadCount * 
+                                sizeof(struct Argument)));
 
                 threadCount++;
             }
