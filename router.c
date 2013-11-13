@@ -13,6 +13,7 @@
 #define MAX_PORTS 100
 #define MAX_EDGES 100
 #define BUFFER_SIZE 1000
+#define TOPOLOGY_SIZE 10000
 #define true 1
 #define false 0
 
@@ -36,6 +37,7 @@ pthread_mutex_t mutexsum;
 int tableEntry = 0;
 struct tableEntry table[MAX_EDGES]; 
 int hashes[MAX_EDGES];
+char echoBuffer[TOPOLOGY_SIZE];
 
 void printBuffer(char* buffer){
     // Declarations
@@ -104,6 +106,11 @@ int checkPacket(char* buffer, int size){
     return(false);
 }
 
+// Adds a packet to the buffer stack
+void echo(buffer, size){
+    printf("ECHO\n");
+}
+
 void *serverRoutine(void* argue){
     // Declarations
     struct sockaddr_in serverAddr;
@@ -114,6 +121,7 @@ void *serverRoutine(void* argue){
     int connfd;
     int size;
     int found;
+    int bufferPoint = 0;
     int* portID = &(arg->port);
     char buffer [BUFFER_SIZE];
     // printf("Server Port %i\n", *portID);
@@ -131,12 +139,33 @@ void *serverRoutine(void* argue){
     connfd = accept(listenfd, (struct sockaddr *)&clientAddr, &clientLength); 
 
     // Receving message
-    size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,
-                    (struct sockaddr *)&clientAddr, &clientLength);
-    // Checks to see if a packet is new
-    found = checkPacket(buffer, size);
-    if(found){
-        printf("Already Seen\n");
+    for(;;){
+        size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,
+                (struct sockaddr *)&clientAddr, &clientLength);
+        // Checks to see if a packet is new
+        found = checkPacket(buffer, size);
+        if(found){
+            printf("Already Seen\n");
+        }
+        else {
+            // Tell the other threads to send
+            echo(buffer, size);
+            // Move the buffer pointer the appropriate distance
+            pthread_mutex_lock(&mutexsum);
+            bufferPoint = bufferPoint + size;
+            pthread_mutex_unlock(&mutexsum);
+        }
+        // If we have not seen this packet yet
+        if ((int)*(echoBuffer+bufferPoint) != 0){
+            pthread_mutex_lock(&mutexsum);
+            sendto(connfd,  (echoBuffer + bufferPoint),
+                   *(echoBuffer + bufferPoint),0, (struct sockaddr *)&clientAddr,
+                   sizeof(clientAddr));
+                   
+            // Adding the size of the buffer
+            bufferPoint = bufferPoint + *(echoBuffer + bufferPoint);
+            pthread_mutex_unlock(&mutexsum);
+        }
     }
 
     printf("Size %i\n", size);
@@ -203,8 +232,9 @@ int main(int argc, char** argv){
     
     // Initing mutex
     pthread_mutex_init(&mutexsum, NULL);
-    // Zeroing global
+    // Zeroing globals
     bzero(hashes, sizeof(int) * MAX_EDGES);
+    bzero(echoBuffer, sizeof(char) * TOPOLOGY_SIZE);
 
     // Mallocing
     portArg = (struct Argument*) malloc(sizeof(struct Argument) * MAX_PORTS);
