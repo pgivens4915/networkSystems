@@ -147,13 +147,17 @@ void *serverRoutine(void* argue){
         if(found){
             printf("Already Seen\n");
         }
-        else {
+        else if (size != 0){
             // Tell the other threads to send
             echo(buffer, size);
             // Move the buffer pointer the appropriate distance
             pthread_mutex_lock(&mutexsum);
             bufferPoint = bufferPoint + size;
             pthread_mutex_unlock(&mutexsum);
+        }
+        else {
+            printf("size = 0 \n");
+            pthread_exit(NULL);
         }
         // If we have not seen this packet yet
         if ((int)*(echoBuffer+bufferPoint) != 0){
