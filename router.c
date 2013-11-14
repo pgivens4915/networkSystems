@@ -121,6 +121,10 @@ int main(int argc, char** argv){
     char* routerID = argv[1];
     char host;
     char client;
+    int hosts[MAX_PORTS];
+    int i;
+    int pid = 0;
+    int hostCount = 0;
     int hostPort;
     int clientPort;
     int* portArg;
@@ -170,8 +174,10 @@ int main(int argc, char** argv){
             if (!*status){
                 threadCount--;
                 *(portArg + threadCount * 4) = hostPort;
-                pthread_create(&threads[threadCount], NULL, serverRoutine,
+                pid = pthread_create(&threads[threadCount], NULL, serverRoutine,
                                (void *) (portArg + threadCount * 4));
+                hosts[hostCount] = pid;
+                hostCount++;
 
                 threadCount++;
             }
@@ -179,6 +185,9 @@ int main(int argc, char** argv){
     }
     
     // Getting the arguments
+    for(i = 0; i < hostCount; i++){
+        pthread_join(threads[i], (void*)&status);
+    }
     printf("Done with Initilization\n");
 
 
