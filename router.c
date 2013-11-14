@@ -67,11 +67,8 @@ int fillBuffer(char* buffer, char host){
 
     // For each local link in the table
     pthread_mutex_lock(&mutexsum);
-    printf("tableEntry : %i\n", tableEntry);
     for(i = 0; i < tableEntry; i++){
-        printf("tableEntry %c\n", table[i].host);
         if(table[i].host == host){
-            printf("i : %i\n", i);
             count++;
             // Copying a table entry into the buffer the 4 is an int in the front
             memcpy((void*) (buffer + sizeof(int) + (i * sizeof(struct tableEntry))), 
@@ -110,6 +107,8 @@ int checkPacket(char* buffer, int size){
 // Adds a packet to the buffer stack
 void echo(char* buffer, int size){
    pthread_mutex_lock(&mutexsum);
+   printf("printing echo\n");
+   printBuffer(buffer);
    memcpy((echoBuffer + echoBuffEnd), buffer, size);
    echoBuffEnd = echoBuffEnd + size;
    pthread_mutex_unlock(&mutexsum);
@@ -160,12 +159,9 @@ void *serverRoutine(void* argue){
             printf("End echo\n");
             echo(buffer, size);
             // Move the buffer pointer the appropriate distance
-            pthread_mutex_lock(&mutexsum);
-            bufferPoint = bufferPoint + size;
-            pthread_mutex_unlock(&mutexsum);
+            bufferPoint = bufferPoint + size ;
         }
         else {
-            printf("Exiting port!!!!!!\n");
             pthread_exit(NULL);
         }
         // If we have not seen this packet yet
@@ -244,9 +240,7 @@ void *clientRoutine(void* argue){
             echo(buffer, size);
             printf("End echo\n");
             // Move the buffer pointer the appropriate distance
-            pthread_mutex_lock(&mutexsum);
             bufferPoint = bufferPoint + size;
-            pthread_mutex_unlock(&mutexsum);
         }
         else{
             printf("Exiting port!!!!!!\n");
@@ -255,7 +249,7 @@ void *clientRoutine(void* argue){
 
         // If we have not seen this packet yet
         pthread_mutex_lock(&mutexsum);
-        if ((int)*(echoBuffer+bufferPoint) != 0){
+        if ((int)*(echoBuffer + bufferPoint) != 0){
             printf("sending echo from port %i\n", *portID);
             sendto(sockfd,  (echoBuffer + bufferPoint),
                     *(echoBuffer + bufferPoint), 0, 
@@ -343,7 +337,7 @@ int main(int argc, char** argv){
                     (void *) (clientArg + threadCount * 
                             sizeof(struct Argument)));
 
-            sleep(2);
+            sleep(1);
             value = pthread_tryjoin_np(threads[threadCount], (void*)&status);
             threadCount++;
             // If not create the port
