@@ -82,15 +82,15 @@ void *serverRoutine(void* port){
     connfd = accept(listenfd, (struct sockaddr *)&clientAddr, &clientLength); 
 
     // Receving message
-    size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
-                    &clientLength);
-    sendto(connfd, buffer, strlen(buffer), 0, (struct sockaddr*)&clientAddr,
-            sizeof(serverAddr));
-    printf("%s\n",buffer);
+    //size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
+    //                &clientLength);
+    //sendto(connfd, buffer, strlen(buffer), 0, (struct sockaddr*)&clientAddr,
+    //        sizeof(serverAddr));
+    //printf("%s\n",buffer);
     //printf("Server %i connected\n", portID);
-    if(size < 1) {
-        printf("BADBADBADBAD\n");
-    }
+    //if(size < 1) {
+    //    printf("BADBADBADBAD\n");
+    //}
     returnArg.sockfd = connfd;
     returnArg.serverAddr = clientAddr;
     struct sockaddr_in * DEBUG = &clientAddr;
@@ -124,12 +124,12 @@ void *clientRoutine(void* port){
         pthread_exit(NULL);
     }
     //fillBuffer(&buffer, 'A');
-    sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
-           sizeof(serverAddr));
-    buffer[0] = 'P';
-    recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serverAddr,
-            &serverLeng);
-    printf("%s\n", buffer);
+    //sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
+    //       sizeof(serverAddr));
+    //buffer[0] = 'P';
+    //recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serverAddr,
+    //        &serverLeng);
+    //printf("%s\n", buffer);
     //printf("Client %i connected\n", *portID);
     connected = !connected;
     returnArg.sockfd = sockfd;
@@ -233,7 +233,7 @@ int main(int argc, char** argv){
         // Send data from each port
         sleep(5);
         for( i = 0; i < returnCount; i++){
-            if(routerID[0] == 'A'){
+            //if(routerID[0] == ){
                 check = sendto(returnArg[i].sockfd, buffer, strlen(buffer), 0,
                         (struct sockaddr *)&(returnArg[i].serverAddr),
                         sizeof(struct sockaddr_in));
@@ -243,11 +243,12 @@ int main(int argc, char** argv){
                     printf("ARRRRRG\n");
                 }
                 else printf("sent\n");
-            }
+            //}
         }
         for( i = 0; i < returnCount; i++){
             struct sockaddr_in thisAddr = returnArg[i].serverAddr;
             char* bleh = malloc(100 * sizeof(char));
+            printf("Waiting\n");
             check = recvfrom(returnArg[i].sockfd, bleh, BUFFER_SIZE, 0,
                     (struct sockaddr *)&thisAddr,
                     &clientLength);
