@@ -77,8 +77,8 @@ void *serverRoutine(void* port){
     // Receving message
     //size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
     //                &clientLength);
-    printf("EXITING %i\n", portID);
-    pthread_exit(NULL);
+    printf("Server %i connected\n", portID);
+    pthread_exit((void*)&portID);
 }
 
 void *clientRoutine(void* port){
@@ -108,6 +108,7 @@ void *clientRoutine(void* port){
     //fillBuffer(&buffer, 'A');
     //sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
     //       sizeof(serverAddr));
+    printf("Client %i connected\n", *portID);
     connected = !connected;
     pthread_exit((void*) portID);
 }
@@ -121,11 +122,13 @@ int main(int argc, char** argv){
     char host;
     char client;
     int hosts[MAX_PORTS];
+    int returnArg[MAX_PORTS];
     int i;
     int pid = 0;
     int hostCount = 0;
     int hostPort;
     int clientPort;
+    int returnCount = 0;
     int* portArg;
     int* clientArg;
     int weight = 0;
@@ -175,22 +178,31 @@ int main(int argc, char** argv){
                 *(portArg + threadCount * 4) = hostPort;
                 pid = pthread_create(&threads[threadCount], NULL, serverRoutine,
                                (void *) (portArg + threadCount * 4));
-                hosts[hostCount] = pid;
+                hosts[hostCount] = threads[threadCount];
                 hostCount++;
 
                 threadCount++;
             }
             else{
                 printf("Client status %i\n", *status);
+                returnArg[returnCount] = *status;
+                returnCount++;
             }
         }
     }
     
     // Getting the arguments
     for(i = 0; i < hostCount; i++){
-        pthread_join(threads[i], (void*)&status);
+        pthread_join(hosts[i], (void*)&status);
+        printf("Host status %i\n", *status);
+        returnArg[returnCount] = *status;
+        returnCount++;
     }
     printf("Done with Initilization\n");
+    
+    for( i = 0; i < returnCount; i++){
+        printf("returnArg : %i\n", returnArg[i]);
+    }
 
 
     // Cleanup
