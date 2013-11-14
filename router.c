@@ -20,6 +20,11 @@ struct Argument {
     int port;
 };
 
+struct Return {
+    int sockfd;
+    struct sockaddr_in serverAddr;
+};
+
 struct tableEntry {
     char host;
     char target;
@@ -54,6 +59,7 @@ void *serverRoutine(void* port){
     // Declarations
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
+    struct Return returnArg;
     int clientLength = sizeof(clientAddr);
     int listenfd;
     int connfd;
@@ -75,14 +81,17 @@ void *serverRoutine(void* port){
     connfd = accept(listenfd, (struct sockaddr *)&clientAddr, &clientLength); 
 
     // Receving message
-    //size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
-    //                &clientLength);
-    printf("Server %i connected\n", portID);
-    pthread_exit((void*)&portID);
+    size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
+                    &clientLength);
+    //printf("Server %i connected\n", portID);
+    returnArg.sockfd = connfd;
+    returnArg.serverAddr = clientAddr;
+    pthread_exit((void*) &returnArg);
 }
 
 void *clientRoutine(void* port){
     // Declarations
+    struct Return returnArg;
     int sockfd;
     int* portID = port;
     int connected = 1;
@@ -106,23 +115,25 @@ void *clientRoutine(void* port){
         pthread_exit(NULL);
     }
     //fillBuffer(&buffer, 'A');
-    //sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
-    //       sizeof(serverAddr));
-    printf("Client %i connected\n", *portID);
+    sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
+           sizeof(serverAddr));
+    //printf("Client %i connected\n", *portID);
     connected = !connected;
-    pthread_exit((void*) portID);
+    returnArg.sockfd = sockfd;
+    returnArg.serverAddr = serverAddr;
+    pthread_exit((void*) &returnArg);
 }
 
 int main(int argc, char** argv){
     // Declarations
     pthread_t threads[MAX_PORTS];
+    struct Return returnArg[MAX_PORTS];
     long t;
-    int* status;
+    struct Return* status;
     char* routerID = argv[1];
     char host;
     char client;
     int hosts[MAX_PORTS];
-    int returnArg[MAX_PORTS];
     int i;
     int pid = 0;
     int hostCount = 0;
@@ -184,7 +195,7 @@ int main(int argc, char** argv){
                 threadCount++;
             }
             else{
-                printf("Client status %i\n", *status);
+                //printf("Client status %i\n", *status);
                 returnArg[returnCount] = *status;
                 returnCount++;
             }
@@ -194,15 +205,26 @@ int main(int argc, char** argv){
     // Getting the arguments
     for(i = 0; i < hostCount; i++){
         pthread_join(hosts[i], (void*)&status);
-        printf("Host status %i\n", *status);
+        //printf("Host status %i\n", *status);
         returnArg[returnCount] = *status;
         returnCount++;
     }
     printf("Done with Initilization\n");
     
     for( i = 0; i < returnCount; i++){
-        printf("returnArg : %i\n", returnArg[i]);
+        printf("returnArg : %i\n", returnArg[i].sockfd);
     }
+
+    //for(;;){
+    //    // Send data from each port
+    //    sleep(5);
+    //    for( i = 0; i < returnCount; i++){
+    //        sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
+    //                sizeof(serverAddr));
+    //    }
+
+        // Select with a 5 sec timeout
+    //}
 
 
     // Cleanup
