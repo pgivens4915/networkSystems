@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <errno.h>
 
 #define MAX_PORTS 100
 #define MAX_EDGES 100
@@ -83,9 +84,16 @@ void *serverRoutine(void* port){
     // Receving message
     size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
                     &clientLength);
+    sendto(connfd, buffer, strlen(buffer), 0, (struct sockaddr*)&clientAddr,
+            sizeof(serverAddr));
+    printf("%s\n",buffer);
     //printf("Server %i connected\n", portID);
+    if(size < 1) {
+        printf("BADBADBADBAD\n");
+    }
     returnArg.sockfd = connfd;
     returnArg.serverAddr = clientAddr;
+    struct sockaddr_in * DEBUG = &clientAddr;
     pthread_exit((void*) &returnArg);
 }
 
@@ -98,6 +106,7 @@ void *clientRoutine(void* port){
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
     char buffer[BUFFER_SIZE] = "Connected";
+    int serverLeng = sizeof(serverAddr);
     //printf("Checking Port %i\n", *portID);
 
     // Socket initilization
@@ -117,10 +126,15 @@ void *clientRoutine(void* port){
     //fillBuffer(&buffer, 'A');
     sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
+    buffer[0] = 'P';
+    recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serverAddr,
+            &serverLeng);
+    printf("%s\n", buffer);
     //printf("Client %i connected\n", *portID);
     connected = !connected;
     returnArg.sockfd = sockfd;
     returnArg.serverAddr = serverAddr;
+    struct sockaddr_in * DEBUG = &serverAddr;
     pthread_exit((void*) &returnArg);
 }
 
@@ -215,23 +229,35 @@ int main(int argc, char** argv){
     printf("Done with Initilization\n");
     
     clientLength = sizeof(struct sockaddr_in);
-    for(;;){
+    //for(;;){
         // Send data from each port
         sleep(5);
         for( i = 0; i < returnCount; i++){
-            sendto(returnArg[i].sockfd, buffer, strlen(buffer), 0,
-                    (struct sockaddr *)&(returnArg[i].serverAddr),
-                    sizeof(struct sockaddr_in));
+            if(routerID[0] == 'A'){
+                check = sendto(returnArg[i].sockfd, buffer, strlen(buffer), 0,
+                        (struct sockaddr *)&(returnArg[i].serverAddr),
+                        sizeof(struct sockaddr_in));
+                if (check == -1) {
+                    int mistake = errno;
+                    printf("%s", strerror(mistake));
+                    printf("ARRRRRG\n");
+                }
+                else printf("sent\n");
+            }
         }
         for( i = 0; i < returnCount; i++){
-            check = recvfrom(returnArg[i].sockfd, buffer, BUFFER_SIZE, 0,
-                    (struct sockaddr *)&(returnArg[i].serverAddr),
+            struct sockaddr_in thisAddr = returnArg[i].serverAddr;
+            char* bleh = malloc(100 * sizeof(char));
+            check = recvfrom(returnArg[i].sockfd, bleh, BUFFER_SIZE, 0,
+                    (struct sockaddr *)&thisAddr,
                     &clientLength);
             if(check > 0){
-                printf("%s\n", buffer);
+                printf("check gt 0\n");
+                printf("%s\n", bleh);
             }
             else{
-                printf("FAIL %i \n", check);
+                printf("hey\n");
+                printf("FAIL %s \n", strerror(errno));
             }
             
         }
@@ -239,7 +265,7 @@ int main(int argc, char** argv){
 
 
         // Select with a 5 sec timeout
-    }
+    //}
 
 
     // Cleanup
