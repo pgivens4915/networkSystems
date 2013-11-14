@@ -58,16 +58,16 @@ void *serverRoutine(void* port){
     int listenfd;
     int connfd;
     int size;
-    int* portID = port;
+    int portID = *((int*) port);
     char buffer [BUFFER_SIZE];
-    printf("Server Port %i\n", *portID);
+    printf("Server Port %i\n", portID);
 
     // Socket initilization
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     bzero(&serverAddr, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    serverAddr.sin_port = htons(*portID);
+    serverAddr.sin_port = htons(portID);
     bind(listenfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
 
     // Listening for a connection
@@ -75,9 +75,9 @@ void *serverRoutine(void* port){
     connfd = accept(listenfd, (struct sockaddr *)&clientAddr, &clientLength); 
 
     // Receving message
-    size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
-                    &clientLength);
-    printf("%s", buffer);
+    //size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
+    //                &clientLength);
+    printf("EXITING %i\n", portID);
     pthread_exit(NULL);
 }
 
@@ -88,7 +88,7 @@ void *clientRoutine(void* port){
     int connected = 1;
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
-    char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE] = "Connected";
     printf("Checking Port %i\n", *portID);
 
     // Socket initilization
@@ -98,21 +98,17 @@ void *clientRoutine(void* port){
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     serverAddr.sin_port = htons(*portID);
     
-    // Waiting for a connection to occur 
-    //while( connected != 0){
-        connected = connect(sockfd, (struct sockaddr *)&serverAddr,
-                            sizeof(serverAddr));
-    //    sleep(5);
-    //}
+    connected = connect(sockfd, (struct sockaddr *)&serverAddr,
+            sizeof(serverAddr));
 
     // Sending message
     if( connected != 0 ){
         *portID = 0;
         pthread_exit((void*) port);
     }
-    fillBuffer(&buffer, 'A');
-    sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
-           sizeof(serverAddr));
+    //fillBuffer(&buffer, 'A');
+    //sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
+    //       sizeof(serverAddr));
     connected = !connected;
     pthread_exit((void*) &connected);
 }
@@ -181,6 +177,9 @@ int main(int argc, char** argv){
             }
         }
     }
+    
+    // Getting the arguments
+    printf("Done with Initilization\n");
 
 
     // Cleanup
