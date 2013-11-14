@@ -67,10 +67,11 @@ int fillBuffer(char* buffer, char host){
 
     // For each local link in the table
     pthread_mutex_lock(&mutexsum);
+    printf("tableEntry : %i\n", tableEntry);
     for(i = 0; i < tableEntry; i++){
+        printf("tableEntry %c\n", table[i].host);
         if(table[i].host == host){
-            //printf("sizeof %i\n", sizeof(struct tableEntry));
-            //printf("tableInfo: %i\n", table[i].fromPort);
+            printf("i : %i\n", i);
             count++;
             // Copying a table entry into the buffer the 4 is an int in the front
             memcpy((void*) (buffer + sizeof(int) + (i * sizeof(struct tableEntry))), 
@@ -79,7 +80,6 @@ int fillBuffer(char* buffer, char host){
         }
     }
     memcpy((void*) buffer, (void*) &count, sizeof(int));
-    printBuffer(buffer);
     pthread_mutex_unlock(&mutexsum);
     return (sizeof(int) + count * sizeof(struct tableEntry));
 }
@@ -110,9 +110,7 @@ int checkPacket(char* buffer, int size){
 // Adds a packet to the buffer stack
 void echo(char* buffer, int size){
    pthread_mutex_lock(&mutexsum);
-   printf("Before mem size :%i\n", size);
    memcpy((echoBuffer + echoBuffEnd), buffer, size);
-   printf("After mem\n");
    echoBuffEnd = echoBuffEnd + size;
    pthread_mutex_unlock(&mutexsum);
 }
@@ -130,7 +128,6 @@ void *serverRoutine(void* argue){
     int bufferPoint = 0;
     int* portID = &(arg->port);
     char buffer [BUFFER_SIZE];
-    // printf("Server Port %i\n", *portID);
 
     // Socket initilization
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -148,6 +145,9 @@ void *serverRoutine(void* argue){
     for(;;){
         size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,
                 (struct sockaddr *)&clientAddr, &clientLength);
+        printf("begin server receive\n");
+        printBuffer(buffer);
+        printf("End server recieve\n");
         // Checks to see if a packet is new
         found = checkPacket(buffer, size);
         if(found){
@@ -155,6 +155,9 @@ void *serverRoutine(void* argue){
         }
         else if (size > 0){
             // Tell the other threads to send
+            printf("We should echo on all but %i\n", *portID);
+            printBuffer(buffer);
+            printf("End echo\n");
             echo(buffer, size);
             // Move the buffer pointer the appropriate distance
             pthread_mutex_lock(&mutexsum);
@@ -162,16 +165,18 @@ void *serverRoutine(void* argue){
             pthread_mutex_unlock(&mutexsum);
         }
         else {
-            //printf("size = 0 \n");
+            printf("Exiting port!!!!!!\n");
             pthread_exit(NULL);
         }
         // If we have not seen this packet yet
         pthread_mutex_lock(&mutexsum);
         if ((int)*(echoBuffer+bufferPoint) != 0){
             printf("sending echo from port %i\n", *portID);
+            printBuffer((echoBuffer + bufferPoint));
             sendto(connfd,  (echoBuffer + bufferPoint),
                    *(echoBuffer + bufferPoint),0, (struct sockaddr *)&clientAddr,
                    sizeof(clientAddr));
+            printf("End sending echo\n");
                    
             // Adding the size of the buffer
             bufferPoint = bufferPoint + *(echoBuffer + bufferPoint);
@@ -179,9 +184,6 @@ void *serverRoutine(void* argue){
         pthread_mutex_unlock(&mutexsum);
     }
 
-    //printf("Size %i\n", size);
-    printBuffer(buffer);
-    // printf("%s", buffer);
     pthread_exit(NULL);
 }
 
@@ -198,7 +200,6 @@ void *clientRoutine(void* argue){
     struct sockaddr_in clientAddr;
     int serverLength = sizeof(serverAddr);
     char buffer[BUFFER_SIZE];
-    //printf("Checking Port %i\n", *portID);
 
     // Socket initilization
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -221,11 +222,17 @@ void *clientRoutine(void* argue){
     }
     // If we have connected
     size = fillBuffer(buffer, arg->name);
+    printf("Sending initial buffer\n");
+    printBuffer(buffer);
+    printf("End sending initial buffer\n");
     sendto(sockfd, buffer, size, 0, (struct sockaddr *)&serverAddr,
            sizeof(serverAddr));
     for(;;){
         size = recvfrom(sockfd,buffer, BUFFER_SIZE, 0, 
                         (struct sockaddr*)&serverAddr, &serverLength);
+        printf("Recieved buffer\n");
+        printBuffer(buffer);
+        printf("End receive\n");
         // Check to see if a packet is new
         found = checkPacket(buffer, size);
         if(found){
@@ -233,13 +240,16 @@ void *clientRoutine(void* argue){
         }
         else if (size > 0){
             // Tell the other threads to send
+            printf("We should echo on all but %i\n", *portID);
             echo(buffer, size);
+            printf("End echo\n");
             // Move the buffer pointer the appropriate distance
             pthread_mutex_lock(&mutexsum);
             bufferPoint = bufferPoint + size;
             pthread_mutex_unlock(&mutexsum);
         }
         else{
+            printf("Exiting port!!!!!!\n");
             pthread_exit(NULL);
         }
 
@@ -250,6 +260,8 @@ void *clientRoutine(void* argue){
             sendto(sockfd,  (echoBuffer + bufferPoint),
                     *(echoBuffer + bufferPoint), 0, 
                     (struct sockaddr *)&serverAddr, sizeof(serverAddr));
+            printBuffer((echoBuffer + bufferPoint));
+            printf("Done with sending");
 
             // Adding the size of the buffer
             bufferPoint = bufferPoint + *(echoBuffer + bufferPoint);
@@ -272,6 +284,7 @@ int main(int argc, char** argv){
     char client;
     int hostPort;
     int clientPort;
+    int value;
     struct Argument* portArg;
     struct Argument* clientArg;
     struct Argument newStruct;
@@ -299,18 +312,26 @@ int main(int argc, char** argv){
             sscanf(line, "<%c,%i,%c,%i,%i>", &host, &hostPort, &client, 
                    &clientPort, &weight);
 
-            //printf("<%c,%i,%c,%i,%i>\n", host, hostPort, client, 
-            //       clientPort, weight);
 
             // Assigning a table entry
             pthread_mutex_lock(&mutexsum);
-            table[threadCount].host = host;
-            table[threadCount].target = client;
-            table[threadCount].weight = weight;
-            table[threadCount].fromPort = hostPort;
-            table[threadCount].toPort = clientPort;
+            table[tableEntry].host = host;
+            table[tableEntry].target = client;
+            table[tableEntry].weight = weight;
+            table[tableEntry].fromPort = hostPort;
+            table[tableEntry].toPort = clientPort;
             tableEntry++;
             pthread_mutex_unlock(&mutexsum);
+        }
+    }
+    fclose(fp);
+    fp = fopen("init.txt", "r");
+    while (getline(&line, &length, fp) != -1){
+        // Assuming that the ID has one length only reads valid lines
+        if(line[1] == routerID[0]){
+            sscanf(line, "<%c,%i,%c,%i,%i>", &host, &hostPort, &client, 
+                   &clientPort, &weight);
+
 
             // Checks to see if the port is open
             // Create the struct
@@ -322,10 +343,11 @@ int main(int argc, char** argv){
                     (void *) (clientArg + threadCount * 
                             sizeof(struct Argument)));
 
-            pthread_join(threads[threadCount], (void*)&status);
+            sleep(2);
+            value = pthread_tryjoin_np(threads[threadCount], (void*)&status);
             threadCount++;
             // If not create the port
-            if (!*status){
+            if (!value){
                 threadCount--;
                 // Creating a structure with the host port and router ID
                 newStruct.port = hostPort;
