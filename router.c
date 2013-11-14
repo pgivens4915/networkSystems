@@ -60,7 +60,7 @@ void *serverRoutine(void* port){
     int size;
     int portID = *((int*) port);
     char buffer [BUFFER_SIZE];
-    printf("Server Port %i\n", portID);
+    //printf("Server Port %i\n", portID);
 
     // Socket initilization
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -89,7 +89,7 @@ void *clientRoutine(void* port){
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
     char buffer[BUFFER_SIZE] = "Connected";
-    printf("Checking Port %i\n", *portID);
+    //printf("Checking Port %i\n", *portID);
 
     // Socket initilization
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -109,7 +109,7 @@ void *clientRoutine(void* port){
     //sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
     //       sizeof(serverAddr));
     connected = !connected;
-    pthread_exit((void*) &connected);
+    pthread_exit((void*) portID);
 }
 
 int main(int argc, char** argv){
@@ -179,6 +179,9 @@ int main(int argc, char** argv){
                 hostCount++;
 
                 threadCount++;
+            }
+            else{
+                printf("Client status %i\n", *status);
             }
         }
     }
