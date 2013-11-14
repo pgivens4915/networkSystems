@@ -131,6 +131,7 @@ int main(int argc, char** argv){
     long t;
     struct Return* status;
     char* routerID = argv[1];
+    char* buffer = "word\n";
     char host;
     char client;
     int hosts[MAX_PORTS];
@@ -144,6 +145,8 @@ int main(int argc, char** argv){
     int* clientArg;
     int weight = 0;
     int threadCount = 0;
+    int check;
+    int clientLength;
     size_t length = 0;
     char * line = NULL;
     FILE *fp;
@@ -211,20 +214,32 @@ int main(int argc, char** argv){
     }
     printf("Done with Initilization\n");
     
-    for( i = 0; i < returnCount; i++){
-        printf("returnArg : %i\n", returnArg[i].sockfd);
-    }
+    clientLength = sizeof(struct sockaddr_in);
+    for(;;){
+        // Send data from each port
+        sleep(5);
+        for( i = 0; i < returnCount; i++){
+            sendto(returnArg[i].sockfd, buffer, strlen(buffer), 0,
+                    (struct sockaddr *)&(returnArg[i].serverAddr),
+                    sizeof(struct sockaddr_in));
+        }
+        for( i = 0; i < returnCount; i++){
+            check = recvfrom(returnArg[i].sockfd, buffer, BUFFER_SIZE, 0,
+                    (struct sockaddr *)&(returnArg[i].serverAddr),
+                    &clientLength);
+            if(check > 0){
+                printf("%s\n", buffer);
+            }
+            else{
+                printf("FAIL %i \n", check);
+            }
+            
+        }
 
-    //for(;;){
-    //    // Send data from each port
-    //    sleep(5);
-    //    for( i = 0; i < returnCount; i++){
-    //        sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
-    //                sizeof(serverAddr));
-    //    }
+
 
         // Select with a 5 sec timeout
-    //}
+    }
 
 
     // Cleanup
