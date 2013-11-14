@@ -103,8 +103,7 @@ void *clientRoutine(void* port){
 
     // Sending message
     if( connected != 0 ){
-        *portID = 0;
-        pthread_exit((void*) port);
+        pthread_exit(NULL);
     }
     //fillBuffer(&buffer, 'A');
     //sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
@@ -171,7 +170,7 @@ int main(int argc, char** argv){
             pthread_join(threads[threadCount], (void*)&status);
             threadCount++;
             // If not create the port
-            if (!*status){
+            if (!status){
                 threadCount--;
                 *(portArg + threadCount * 4) = hostPort;
                 pid = pthread_create(&threads[threadCount], NULL, serverRoutine,
