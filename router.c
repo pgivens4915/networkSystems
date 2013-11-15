@@ -256,9 +256,7 @@ void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start
            path = pathDist(node, intTarget, graph, graphSize);
            if (path != 0){
                nodeDist = *(distance + intTarget * sizeof(int));
-               printf("%i----%i : %i : %i\n", intTarget, node, path, nodeDist);
                if (path + nodeDist < (*(distance + node * sizeof(int)) )){
-                   printf("changing dist\n");
                    *(distance + node * sizeof(int)) =  path + nodeDist;
                }
            }
