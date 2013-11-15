@@ -198,8 +198,8 @@ void *clientRoutine(void* port){
 // Finds the distance of between two nodes
 int pathDist(int source, int target, struct tableEntry* graph, int graphSize){
     struct tableEntry thisEntry;
-    char sourceChar = source + 'A';
-    char targetChar = target + 'A';
+    char targetChar = source + 'A';
+    char sourceChar = target + 'A';
     int i;
     if(source == target){
         return (0);
@@ -219,15 +219,21 @@ int pathDist(int source, int target, struct tableEntry* graph, int graphSize){
 // Finds the smallest array entry > intTarget
 int smallest(int* distance, int intTarget){
     int i;
-    int smallest = 10000;
+    int smallest = 100000;
     int current;
+    int index = -1;
+    int targetWeight = *(distance + intTarget * sizeof(int));
     for(i = 0; i < 6; i++){
         current = *(distance + i * sizeof(int));
-        if(current < smallest && current > intTarget){
+        //printf("current %i smallest %i intTarget %i\n", smallest, current, targetWeight);
+        if(current < smallest && (current > targetWeight || (current == targetWeight && i > intTarget))){
+            //printf("SWAP\n");
             smallest = current;
+            index = i;
         }
             
     }
+    return index;
 }
 
 // Does dijkstras alg on a list
@@ -237,6 +243,7 @@ void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start
    int intTarget = start - 'A';
    int path;
    int node;
+   int nodeDist;
    for(i = 0; i < 6; i++){
        *(distance + i * sizeof(int)) = 10000;
    }
@@ -248,16 +255,30 @@ void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start
        for(node = 0; node < 6; node++){
            path = pathDist(node, intTarget, graph, graphSize);
            if (path != 0){
-               if (path < (*(distance + node * sizeof(int)) + 
-                   *(distance + intTarget * sizeof(int)))){
-                   *(distance + node * sizeof(int)) =  path;
+               nodeDist = *(distance + intTarget * sizeof(int));
+               printf("%i----%i : %i : %i\n", intTarget, node, path, nodeDist);
+               if (path + nodeDist < (*(distance + node * sizeof(int)) )){
+                   printf("changing dist\n");
+                   *(distance + node * sizeof(int)) =  path + nodeDist;
                }
            }
-           // find the smallest node bigger than the last target
-           intTarget = smallest(distance, intTarget);
+       }
+       // find the smallest node bigger than the last target
+       intTarget = smallest(distance, intTarget);
+       //printf("New Piviot: %i\n", intTarget);
+       if (intTarget == -1){
+           printf("Dijkstras fail\n");
+           return;
+
        }
    }
    
+}
+
+void printDistance(int* distance){
+    printf("A%iB%ic%iD%iE%iF%i\n", *distance, *(distance + 1 * sizeof(int)),
+            *(distance + 2 * sizeof(int)),*(distance + 3 * sizeof(int)),
+            *(distance + 4 * sizeof(int)),*(distance + 5 * sizeof(int)));
 }
 
 int main(int argc, char** argv){
@@ -359,6 +380,7 @@ int main(int argc, char** argv){
     check = fillGraph(graph, &tableSize, (char*)buffer);
     printGraph(graph, tableSize);
     dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
+    printDistance(distance);
     for( i = 0; i < returnCount; i++){
         check = sendto(returnArg[i].sockfd, buffer,
                 *((int*) buffer) * sizeof(struct tableEntry) + sizeof(int), 0,
@@ -381,6 +403,8 @@ int main(int argc, char** argv){
             check = fillGraph(graph, &tableSize, bleh);
             if(check != 0){
                 printGraph(graph, tableSize);
+                dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
+                printDistance(distance);
                 printf("echo\n");
             }
         }
