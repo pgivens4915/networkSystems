@@ -41,18 +41,26 @@ int tableEntry = 0;
 struct tableEntry table[MAX_EDGES]; 
 
 void fillBuffer(char* buffer, char host){
+    printf("in fill buffer\n");
     int count = 0;
     int i = 0;
 
     // For each local link in the table
     pthread_mutex_lock(&mutexsum);
     for(i = 0; i < tableEntry; i++){
+        printf("i : %c\n", table[i].host);
         if(table[i].host == host){
+            count++;
             // Copying a table entry into the buffer
-            memcpy((void*) (buffer + i * sizeof(struct tableEntry)), 
-                   (void*) &table[i], sizeof(tableEntry));
+            memcpy((void*) (buffer + sizeof(int)+ i * sizeof(struct tableEntry)), 
+                    (void*) &table[i], sizeof(tableEntry));
         }
     }
+    printf("before mem\n");
+    memcpy((void*) buffer, (void*)&count, sizeof(int));
+    printf("after mem\n");
+    
+    printf("buffernum %i\n", *((int*) buffer));
     pthread_mutex_unlock(&mutexsum);
 
 }
@@ -81,17 +89,7 @@ void *serverRoutine(void* port){
     listen(listenfd, 1024);
     connfd = accept(listenfd, (struct sockaddr *)&clientAddr, &clientLength); 
 
-    // Receving message
-    //size = recvfrom(connfd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&clientAddr,
-    //                &clientLength);
-    //sendto(connfd, buffer, strlen(buffer), 0, (struct sockaddr*)&clientAddr,
-    //        sizeof(serverAddr));
-    //printf("%s\n",buffer);
-    //printf("Server %i connected\n", portID);
-    //if(size < 1) {
-    //    printf("BADBADBADBAD\n");
-    //}
-    returnArg.sockfd = connfd;
+   returnArg.sockfd = connfd;
     returnArg.serverAddr = clientAddr;
     struct sockaddr_in * DEBUG = &clientAddr;
     pthread_exit((void*) &returnArg);
@@ -115,7 +113,7 @@ void *clientRoutine(void* port){
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     serverAddr.sin_port = htons(*portID);
-    
+
     connected = connect(sockfd, (struct sockaddr *)&serverAddr,
             sizeof(serverAddr));
 
@@ -123,15 +121,6 @@ void *clientRoutine(void* port){
     if( connected != 0 ){
         pthread_exit(NULL);
     }
-    //fillBuffer(&buffer, 'A');
-    //sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serverAddr,
-    //       sizeof(serverAddr));
-    //buffer[0] = 'P';
-    //recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serverAddr,
-    //        &serverLeng);
-    //printf("%s\n", buffer);
-    //printf("Client %i connected\n", *portID);
-    connected = !connected;
     returnArg.sockfd = sockfd;
     returnArg.serverAddr = serverAddr;
     struct sockaddr_in * DEBUG = &serverAddr;
@@ -145,7 +134,7 @@ int main(int argc, char** argv){
     long t;
     struct Return* status;
     char* routerID = argv[1];
-    char* buffer = "word\n";
+    char* buffer[BUFFER_SIZE];
     char host;
     char client;
     int hosts[MAX_PORTS];
@@ -164,7 +153,7 @@ int main(int argc, char** argv){
     size_t length = 0;
     char * line = NULL;
     FILE *fp;
-    
+
     // Initing mutex
     pthread_mutex_init(&mutexsum, NULL);
 
@@ -178,10 +167,10 @@ int main(int argc, char** argv){
         // Assuming that the ID has one length only reads valid lines
         if(line[1] == routerID[0]){
             sscanf(line, "<%c,%i,%c,%i,%i>", &host, &hostPort, &client, 
-                   &clientPort, &weight);
+                    &clientPort, &weight);
 
             printf("<%c,%i,%c,%i,%i>\n", host, hostPort, client, 
-                   clientPort, weight);
+                    clientPort, weight);
 
             // Assigning a table entry
             pthread_mutex_lock(&mutexsum);
@@ -196,7 +185,7 @@ int main(int argc, char** argv){
             // Checks to see if the port is open
             *(clientArg + threadCount * 4) = clientPort;
             pthread_create(&threads[threadCount], NULL, clientRoutine,
-                           (void *) (clientArg + threadCount * 4));
+                    (void *) (clientArg + threadCount * 4));
 
             pthread_join(threads[threadCount], (void*)&status);
             threadCount++;
@@ -205,7 +194,7 @@ int main(int argc, char** argv){
                 threadCount--;
                 *(portArg + threadCount * 4) = hostPort;
                 pid = pthread_create(&threads[threadCount], NULL, serverRoutine,
-                               (void *) (portArg + threadCount * 4));
+                        (void *) (portArg + threadCount * 4));
                 hosts[hostCount] = threads[threadCount];
                 hostCount++;
 
@@ -218,7 +207,7 @@ int main(int argc, char** argv){
             }
         }
     }
-    
+
     // Getting the arguments
     for(i = 0; i < hostCount; i++){
         pthread_join(hosts[i], (void*)&status);
@@ -227,47 +216,39 @@ int main(int argc, char** argv){
         returnCount++;
     }
     printf("Done with Initilization\n");
-    
+
     clientLength = sizeof(struct sockaddr_in);
     //for(;;){
-        // Send data from each port
-        sleep(5);
-        for( i = 0; i < returnCount; i++){
-            //if(routerID[0] == ){
-                check = sendto(returnArg[i].sockfd, buffer, strlen(buffer), 0,
-                        (struct sockaddr *)&(returnArg[i].serverAddr),
-                        sizeof(struct sockaddr_in));
-                if (check == -1) {
-                    int mistake = errno;
-                    printf("%s", strerror(mistake));
-                    printf("ARRRRRG\n");
-                }
-                else printf("sent\n");
-            //}
+    // Send data from each port
+    //sleep(5);
+    fillBuffer((char*)buffer, routerID[0]);
+    for( i = 0; i < returnCount; i++){
+        check = sendto(returnArg[i].sockfd, buffer, *((int*) buffer), 0,
+                (struct sockaddr *)&(returnArg[i].serverAddr),
+                sizeof(struct sockaddr_in));
+        if (check == -1) {
+            int mistake = errno;
+            printf("%s", strerror(mistake));
+            printf("ARRRRRG\n");
         }
-        for( i = 0; i < returnCount; i++){
-            struct sockaddr_in thisAddr = returnArg[i].serverAddr;
-            char* bleh = malloc(100 * sizeof(char));
-            printf("Waiting\n");
-            check = recvfrom(returnArg[i].sockfd, bleh, BUFFER_SIZE, 0,
-                    (struct sockaddr *)&thisAddr,
-                    &clientLength);
-            if(check > 0){
-                printf("check gt 0\n");
-                printf("%s\n", bleh);
-            }
-            else{
-                printf("hey\n");
-                printf("FAIL %s \n", strerror(errno));
-            }
-            
+        else printf("sent\n");
+    }
+    for( i = 0; i < returnCount; i++){
+        struct sockaddr_in thisAddr = returnArg[i].serverAddr;
+        char* bleh = malloc(100 * sizeof(char));
+        check = recvfrom(returnArg[i].sockfd, bleh, BUFFER_SIZE, 0,
+                (struct sockaddr *)&thisAddr,
+                &clientLength);
+        if(check > 0){
+            printf("check gt 0\n");
+            printf("%s\n", bleh);
+        }
+        else{
+            printf("hey\n");
+            printf("FAIL %s \n", strerror(errno));
         }
 
-
-
-        // Select with a 5 sec timeout
-    //}
-
+    }
 
     // Cleanup
     pthread_mutex_destroy(&mutexsum);
