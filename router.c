@@ -66,7 +66,6 @@ void fillBuffer(char* buffer, char host){
     // For each local link in the table
     pthread_mutex_lock(&mutexsum);
     for(i = 0; i < tableEntry; i++){
-        //printf("i : %i\n", table[i].toPort);
         if(table[i].host == host){
             count++;
             // Copying a table entry into the buffer
@@ -76,13 +75,58 @@ void fillBuffer(char* buffer, char host){
     }
     memcpy((void*) buffer, (void*)&count, sizeof(int));
     
-    //printf("buffernum %i\n", *((int*) buffer));
-    //printBuffer(buffer);
     pthread_mutex_unlock(&mutexsum);
 
 }
 
-   
+void printGraph(struct tableEntry* table, int tableSize){
+    int i = 0;
+    struct tableEntry* thisEntry;
+    for(i = 0; i < tableSize; i++){
+        thisEntry = (table + i * sizeof(struct tableEntry));
+        printf("<%c,%i,%c,%i,%i>\n", thisEntry->host, thisEntry->fromPort,
+                thisEntry->target, thisEntry->toPort, thisEntry->weight);
+
+    }
+}
+
+// Fills a graph with a buffer, and sees if the data already exists
+// returns zero if already seen, otherwise the size of the new table
+int fillGraph(struct tableEntry* table, int* tableSize, char* buffer){
+    int i = 0;
+    int j = 0;
+    int result = 0;
+    // Checking to see if there are any repeats
+    // For each table entry
+    for(i = 0; i < *tableSize; i++){
+        // For each buffer entry
+        for(j = 0; j < *((int*)buffer); j++){
+            result = memcmp((void*)(table + i * sizeof(struct tableEntry)),
+                    (void*)(buffer + sizeof(int) + j * sizeof(struct tableEntry) + sizeof(int)),
+                    sizeof(struct tableEntry));
+            if(result != 0){
+                printf("seen\n");
+                return 0;
+            }
+        }
+    }
+    
+    // Since we have not seen the data copy it to the end of the table
+    for(i = *tableSize; i < *tableSize + *((int*)buffer); i++){
+        *(table + (*tableSize + i) *sizeof(struct tableEntry)) = *((struct tableEntry*) (buffer + sizeof(int) + i * sizeof(struct tableEntry)));
+    }
+
+    // The new table size = the old table size, plus number of new entries
+    *tableSize = *tableSize + *((int*)buffer);
+
+
+            
+    return *tableSize;
+
+
+}
+
+
 
 void *serverRoutine(void* port){
     // Declarations
@@ -125,7 +169,6 @@ void *clientRoutine(void* port){
     struct sockaddr_in clientAddr;
     char buffer[BUFFER_SIZE] = "Connected";
     int serverLeng = sizeof(serverAddr);
-    //printf("Checking Port %i\n", *portID);
 
     // Socket initilization
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -151,6 +194,7 @@ int main(int argc, char** argv){
     // Declarations
     pthread_t threads[MAX_PORTS];
     struct Return returnArg[MAX_PORTS];
+    struct tableEntry graph[MAX_EDGES];
     long t;
     struct Return* status;
     char* routerID = argv[1];
@@ -158,6 +202,7 @@ int main(int argc, char** argv){
     char host;
     char client;
     int hosts[MAX_PORTS];
+    int tableSize = 0;
     int i;
     int pid = 0;
     int hostCount = 0;
@@ -201,8 +246,6 @@ int main(int argc, char** argv){
             table[tableEntry].toPort = clientPort;
             tableEntry++;
             pthread_mutex_unlock(&mutexsum);
-            //printf("<%c,%i,%c,%i,%i>\n", table[threadCount].host, table[threadCount].fromPort, table[threadCount].target, 
-            //        table[threadCount].toPort, table[threadCount].weight);
 
             // Checks to see if the port is open
             *(clientArg + threadCount * 4) = clientPort;
@@ -223,7 +266,6 @@ int main(int argc, char** argv){
                 threadCount++;
             }
             else{
-                //printf("Client status %i\n", *status);
                 returnArg[returnCount] = *status;
                 returnCount++;
             }
@@ -233,7 +275,6 @@ int main(int argc, char** argv){
     // Getting the arguments
     for(i = 0; i < hostCount; i++){
         pthread_join(hosts[i], (void*)&status);
-        //printf("Host status %i\n", *status);
         returnArg[returnCount] = *status;
         returnCount++;
     }
@@ -244,12 +285,16 @@ int main(int argc, char** argv){
     // Send data from each port
     //sleep(5);
     fillBuffer((char*)buffer, routerID[0]);
-    printf("sending Buffer\n");
-    printBuffer((char*)buffer);
+    check = fillGraph(graph, &tableSize, (char*)buffer);
+    printf("printing graph\n");
+    printGraph(graph, tableSize);
+    printf("end printing graph\n");
     for( i = 0; i < returnCount; i++){
-        check = sendto(returnArg[i].sockfd, buffer, *((int*) buffer) * sizeof(struct tableEntry) + sizeof(int), 0,
+        check = sendto(returnArg[i].sockfd, buffer,
+                *((int*) buffer) * sizeof(struct tableEntry) + sizeof(int), 0,
                 (struct sockaddr *)&(returnArg[i].serverAddr),
                 sizeof(struct sockaddr_in));
+
         if (check == -1) {
             int mistake = errno;
             printf("%s", strerror(mistake));
@@ -264,11 +309,8 @@ int main(int argc, char** argv){
                 (struct sockaddr *)&thisAddr,
                 &clientLength);
         if(check > 0){
-            printf("Check size : %i\n", check);
-            printBuffer(bleh);
         }
         else{
-            printf("hey\n");
             printf("FAIL %s \n", strerror(errno));
         }
 
