@@ -40,30 +40,50 @@ pthread_mutex_t mutexsum;
 int tableEntry = 0;
 struct tableEntry table[MAX_EDGES]; 
 
+// Prints a buffer
+void printBuffer(char* buffer){
+    // Declarations
+    int count = 0;
+    int i = 0;
+    struct tableEntry* thisEntry;
+
+    // The first part of the buffer has the count
+    count = (int) *buffer;
+    for(i = 0; i < count; i++){
+        // Pulls the table entry out of memory
+        thisEntry = (struct tableEntry*) (buffer + sizeof(int)+
+                (i * sizeof(struct tableEntry)));
+
+        printf("<%c,%i,%c,%i,%i>\n", thisEntry->host, thisEntry->fromPort,
+                thisEntry->target, thisEntry->toPort, thisEntry->weight);
+    }
+}
+
 void fillBuffer(char* buffer, char host){
-    printf("in fill buffer\n");
     int count = 0;
     int i = 0;
 
     // For each local link in the table
     pthread_mutex_lock(&mutexsum);
     for(i = 0; i < tableEntry; i++){
-        printf("i : %c\n", table[i].host);
+        //printf("i : %i\n", table[i].toPort);
         if(table[i].host == host){
             count++;
             // Copying a table entry into the buffer
             memcpy((void*) (buffer + sizeof(int)+ i * sizeof(struct tableEntry)), 
-                    (void*) &table[i], sizeof(tableEntry));
+                    (void*) &table[i], sizeof(struct tableEntry));
         }
     }
-    printf("before mem\n");
     memcpy((void*) buffer, (void*)&count, sizeof(int));
-    printf("after mem\n");
     
-    printf("buffernum %i\n", *((int*) buffer));
+    //printf("buffernum %i\n", *((int*) buffer));
+    //printBuffer(buffer);
     pthread_mutex_unlock(&mutexsum);
 
 }
+
+   
+
 void *serverRoutine(void* port){
     // Declarations
     struct sockaddr_in serverAddr;
@@ -174,13 +194,15 @@ int main(int argc, char** argv){
 
             // Assigning a table entry
             pthread_mutex_lock(&mutexsum);
-            table[threadCount].host = host;
-            table[threadCount].target = client;
-            table[threadCount].weight = weight;
-            table[threadCount].fromPort = hostPort;
-            table[threadCount].toPort = clientPort;
+            table[tableEntry].host = host;
+            table[tableEntry].target = client;
+            table[tableEntry].weight = weight;
+            table[tableEntry].fromPort = hostPort;
+            table[tableEntry].toPort = clientPort;
             tableEntry++;
             pthread_mutex_unlock(&mutexsum);
+            //printf("<%c,%i,%c,%i,%i>\n", table[threadCount].host, table[threadCount].fromPort, table[threadCount].target, 
+            //        table[threadCount].toPort, table[threadCount].weight);
 
             // Checks to see if the port is open
             *(clientArg + threadCount * 4) = clientPort;
@@ -222,8 +244,10 @@ int main(int argc, char** argv){
     // Send data from each port
     //sleep(5);
     fillBuffer((char*)buffer, routerID[0]);
+    printf("sending Buffer\n");
+    printBuffer((char*)buffer);
     for( i = 0; i < returnCount; i++){
-        check = sendto(returnArg[i].sockfd, buffer, *((int*) buffer), 0,
+        check = sendto(returnArg[i].sockfd, buffer, *((int*) buffer) * sizeof(struct tableEntry) + sizeof(int), 0,
                 (struct sockaddr *)&(returnArg[i].serverAddr),
                 sizeof(struct sockaddr_in));
         if (check == -1) {
@@ -240,8 +264,8 @@ int main(int argc, char** argv){
                 (struct sockaddr *)&thisAddr,
                 &clientLength);
         if(check > 0){
-            printf("check gt 0\n");
-            printf("%s\n", bleh);
+            printf("Check size : %i\n", check);
+            printBuffer(bleh);
         }
         else{
             printf("hey\n");
