@@ -104,7 +104,6 @@ int fillGraph(struct tableEntry* table, int* tableSize, char* buffer){
     for(i = 0; i < *tableSize; i++){
         // For each buffer entry
         for(j = 0; j < *((int*)buffer); j++){
-            //printf("i %i, j %i\n", i, j);
             first = (void*)(table + i * sizeof(struct tableEntry));
             second = (void*)(buffer + sizeof(int) + j*sizeof(struct tableEntry));
             result = memcmp(first,second, sizeof(struct tableEntry));
@@ -114,25 +113,17 @@ int fillGraph(struct tableEntry* table, int* tableSize, char* buffer){
             }
         }
     }
-    printf("done checking\n");
     if(buffer == NULL) printf("arrrradsfasd\n");
     
     // Since we have not seen the data copy it to the end of the table
     for(i = *tableSize; i < *tableSize + *((int*)buffer); i++){
-        printf("i %i\n", i);
         thisEntry = *((struct tableEntry*) (buffer + sizeof(int) + (i - *tableSize) * sizeof(struct tableEntry)));
-        printf("thisEntry <%c,%i,%c,%i,%i>\n", thisEntry.host, thisEntry.fromPort,
-                thisEntry.target, thisEntry.toPort, thisEntry.weight);
         
         *(table + i * sizeof(struct tableEntry)) = thisEntry;
     }
 
     // The new table size = the old table size, plus number of new entries
     *tableSize = *tableSize + *((int*)buffer);
-    printf("before graph\n");
-    printGraph(table, *tableSize);
-    printf("after graph\n");
-    printf("DONE\n");
 
 
             
@@ -154,7 +145,6 @@ void *serverRoutine(void* port){
     int size;
     int portID = *((int*) port);
     char buffer [BUFFER_SIZE];
-    //printf("Server Port %i\n", portID);
 
     // Socket initilization
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -205,6 +195,71 @@ void *clientRoutine(void* port){
     pthread_exit((void*) &returnArg);
 }
 
+// Finds the distance of between two nodes
+int pathDist(int source, int target, struct tableEntry* graph, int graphSize){
+    struct tableEntry thisEntry;
+    char sourceChar = source + 'A';
+    char targetChar = target + 'A';
+    int i;
+    if(source == target){
+        return (0);
+    }
+    for(i = 0; i < graphSize; i++){
+        thisEntry = *(graph + i * sizeof(struct tableEntry));
+        if(thisEntry.host == sourceChar && thisEntry.target == targetChar){
+            return thisEntry.weight;
+        }
+    }
+    // If nothing is found
+    return(0);
+    
+
+}
+
+// Finds the smallest array entry > intTarget
+int smallest(int* distance, int intTarget){
+    int i;
+    int smallest = 10000;
+    int current;
+    for(i = 0; i < 6; i++){
+        current = *(distance + i * sizeof(int));
+        if(current < smallest && current > intTarget){
+            smallest = current;
+        }
+            
+    }
+}
+
+// Does dijkstras alg on a list
+void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start){
+   char target = start;
+   int i;
+   int intTarget = start - 'A';
+   int path;
+   int node;
+   for(i = 0; i < 6; i++){
+       *(distance + i * sizeof(int)) = 10000;
+   }
+   // Setting start to zero
+   *(distance + intTarget * sizeof(int)) = 0;
+
+   // Now we loop until done
+   for(i = 1; i < 6; i++){
+       for(node = 0; node < 6; node++){
+           path = pathDist(node, intTarget, graph, graphSize);
+           if (path != 0){
+               if (path < (*(distance + node * sizeof(int)) + 
+                   *(distance + intTarget * sizeof(int)))){
+                   *(distance + node * sizeof(int)) =  path;
+               }
+           }
+           // find the smallest node bigger than the last target
+           intTarget = smallest(distance, intTarget);
+       }
+   }
+   
+}
+
 int main(int argc, char** argv){
     // Declarations
     pthread_t threads[MAX_PORTS];
@@ -217,6 +272,7 @@ int main(int argc, char** argv){
     char host;
     char client;
     int hosts[MAX_PORTS];
+    int distance[6];
     int tableSize = 0;
     int i;
     int pid = 0;
@@ -301,9 +357,8 @@ int main(int argc, char** argv){
     //sleep(5);
     fillBuffer((char*)buffer, routerID[0]);
     check = fillGraph(graph, &tableSize, (char*)buffer);
-    //printf("printing graph\n");
-    //printGraph(graph, tableSize);
-    //printf("end printing graph\n");
+    printGraph(graph, tableSize);
+    dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
     for( i = 0; i < returnCount; i++){
         check = sendto(returnArg[i].sockfd, buffer,
                 *((int*) buffer) * sizeof(struct tableEntry) + sizeof(int), 0,
@@ -325,7 +380,7 @@ int main(int argc, char** argv){
         if(check > 0){
             check = fillGraph(graph, &tableSize, bleh);
             if(check != 0){
-                //printGraph(table, tableSize);
+                printGraph(graph, tableSize);
                 printf("echo\n");
             }
         }
