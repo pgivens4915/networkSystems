@@ -74,7 +74,7 @@ void fillBuffer(char* buffer, char host){
         }
     }
     memcpy((void*) buffer, (void*)&count, sizeof(int));
-    
+
     pthread_mutex_unlock(&mutexsum);
 
 }
@@ -114,11 +114,11 @@ int fillGraph(struct tableEntry* table, int* tableSize, char* buffer){
         }
     }
     if(buffer == NULL) printf("arrrradsfasd\n");
-    
+
     // Since we have not seen the data copy it to the end of the table
     for(i = *tableSize; i < *tableSize + *((int*)buffer); i++){
         thisEntry = *((struct tableEntry*) (buffer + sizeof(int) + (i - *tableSize) * sizeof(struct tableEntry)));
-        
+
         *(table + i * sizeof(struct tableEntry)) = thisEntry;
     }
 
@@ -126,7 +126,7 @@ int fillGraph(struct tableEntry* table, int* tableSize, char* buffer){
     *tableSize = *tableSize + *((int*)buffer);
 
 
-            
+
     return *tableSize;
 
 
@@ -158,7 +158,7 @@ void *serverRoutine(void* port){
     listen(listenfd, 1024);
     connfd = accept(listenfd, (struct sockaddr *)&clientAddr, &clientLength); 
 
-   returnArg.sockfd = connfd;
+    returnArg.sockfd = connfd;
     returnArg.serverAddr = clientAddr;
     struct sockaddr_in * DEBUG = &clientAddr;
     pthread_exit((void*) &returnArg);
@@ -212,7 +212,7 @@ int pathDist(int source, int target, struct tableEntry* graph, int graphSize){
     }
     // If nothing is found
     return(0);
-    
+
 
 }
 
@@ -231,46 +231,46 @@ int smallest(int* distance, int intTarget){
             smallest = current;
             index = i;
         }
-            
+
     }
     return index;
 }
 
 // Does dijkstras alg on a list
 void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start){
-   char target = start;
-   int i;
-   int intTarget = start - 'A';
-   int path;
-   int node;
-   int nodeDist;
-   for(i = 0; i < 6; i++){
-       *(distance + i * sizeof(int)) = 10000;
-   }
-   // Setting start to zero
-   *(distance + intTarget * sizeof(int)) = 0;
+    char target = start;
+    int i;
+    int intTarget = start - 'A';
+    int path;
+    int node;
+    int nodeDist;
+    for(i = 0; i < 6; i++){
+        *(distance + i * sizeof(int)) = 10000;
+    }
+    // Setting start to zero
+    *(distance + intTarget * sizeof(int)) = 0;
 
-   // Now we loop until done
-   for(i = 1; i < 6; i++){
-       for(node = 0; node < 6; node++){
-           path = pathDist(node, intTarget, graph, graphSize);
-           if (path != 0){
-               nodeDist = *(distance + intTarget * sizeof(int));
-               if (path + nodeDist < (*(distance + node * sizeof(int)) )){
-                   *(distance + node * sizeof(int)) =  path + nodeDist;
-               }
-           }
-       }
-       // find the smallest node bigger than the last target
-       intTarget = smallest(distance, intTarget);
-       //printf("New Piviot: %i\n", intTarget);
-       if (intTarget == -1){
-           printf("Dijkstras fail\n");
-           return;
+    // Now we loop until done
+    for(i = 1; i < 6; i++){
+        for(node = 0; node < 6; node++){
+            path = pathDist(node, intTarget, graph, graphSize);
+            if (path != 0){
+                nodeDist = *(distance + intTarget * sizeof(int));
+                if (path + nodeDist < (*(distance + node * sizeof(int)) )){
+                    *(distance + node * sizeof(int)) =  path + nodeDist;
+                }
+            }
+        }
+        // find the smallest node bigger than the last target
+        intTarget = smallest(distance, intTarget);
+        //printf("New Piviot: %i\n", intTarget);
+        if (intTarget == -1){
+            printf("Dijkstras fail\n");
+            return;
 
-       }
-   }
-   
+        }
+    }
+
 }
 
 void printDistance(int* distance){
@@ -429,6 +429,7 @@ int main(int argc, char** argv){
 
     }
     int biggest = 0;
+    int retval;
     fd_set readfds;
     struct timeval tv;
     FD_ZERO(&readfds);
@@ -441,30 +442,68 @@ int main(int argc, char** argv){
         }
 
     }
-    
+
     printf("made it to select\n");
     for(;;){
         // Setting timeout
         tv.tv_sec = 5;
         tv.tv_usec = 0;
-        select(biggest + 1, &readfds, NULL, NULL, &tv);
+        retval = select(biggest + 1, &readfds, NULL, NULL, &tv);
         for( i = 0; i < returnCount; i++){
             if(FD_ISSET(returnArg[i].sockfd, &readfds)){
                 printf("socket Ready\n");
-            }
-        }
+                char* bleh = malloc(100 * sizeof(char));
+                struct sockaddr_in thisAddr = returnArg[i].serverAddr;
+                check = recvfrom(returnArg[i].sockfd, bleh, BUFFER_SIZE, 0,
+                        (struct sockaddr *)&thisAddr,
+                        &clientLength);
+                if(check > 0){
+                    check = fillGraph(graph, &tableSize, bleh);
+                    if(check != 0){
+                        printGraph(graph, tableSize);
+                        dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
+                        printDistance(distance);
+                        printf("echo\n");
+                        int j;
+                        // send on all ports minus current port
+                        for(j = 0; j < returnCount; j++){
+                            printf("beforePrint\n");
+                            printf(" %i == %i\n", returnArg[i].sockfd, returnArg[j].sockfd);
+                            if(returnArg[i].sockfd != returnArg[j].sockfd){
+                                printf("echoing here %i\n", j);
+                                check = sendto(returnArg[j].sockfd, bleh,
+                                        *((int*) bleh) * sizeof(struct tableEntry) +
+                                        sizeof(int), 0,
+                                        (struct sockaddr *)&(returnArg[i].serverAddr),
+                                        sizeof(struct sockaddr_in));
 
+                            }
+                            printf("after if %i---%i\n", j, returnCount);
+                        }
+                        printf("here??\n");
+                    }
+                    else printf("SEEN DAT\n");
+
+                }
+            }
+
+        }
+        if(retval == 0){
+            // Sending the link state
+            printf("TIMEOUT\n");
+        }
+        
     }
 
-    // Now the initial message has been flooded and recived
+        // Now the initial message has been flooded and recived
 
-    // Cleanup
-    pthread_mutex_destroy(&mutexsum);
-    fclose(fp);
-    free(line);
-    free(portArg);
-    pthread_exit(NULL);
-    return(0); 
-}
+        // Cleanup
+        pthread_mutex_destroy(&mutexsum);
+        fclose(fp);
+        free(line);
+        free(portArg);
+        pthread_exit(NULL);
+        return(0); 
+    }
 
 
