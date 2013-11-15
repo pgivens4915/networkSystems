@@ -404,10 +404,54 @@ int main(int argc, char** argv){
                 dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
                 printDistance(distance);
                 printf("echo\n");
+                int j;
+                // send on all ports minus current port
+                for(j = 0; j < returnCount; j++){
+                    printf("beforePrint\n");
+                    printf(" %i == %i\n", returnArg[i].sockfd, returnArg[j].sockfd);
+                    if(returnArg[i].sockfd != returnArg[j].sockfd){
+                        printf("echoing here %i\n", j);
+                        check = sendto(returnArg[j].sockfd, bleh,
+                                *((int*) bleh) * sizeof(struct tableEntry) +
+                                sizeof(int), 0,
+                                (struct sockaddr *)&(returnArg[i].serverAddr),
+                                sizeof(struct sockaddr_in));
+
+                    }
+                    printf("after if %i---%i\n", j, returnCount);
+                }
+                printf("here??\n");
             }
         }
         else{
             printf("FAIL %s \n", strerror(errno));
+        }
+
+    }
+    int biggest = 0;
+    fd_set readfds;
+    struct timeval tv;
+    FD_ZERO(&readfds);
+    // Setting fd set
+    printf("setting up set\n");
+    for( i = 0; i < returnCount; i++){
+        FD_SET(returnArg[i].sockfd, &readfds);
+        if (returnArg[i].sockfd > biggest){
+            biggest = returnArg[i].sockfd;
+        }
+
+    }
+    
+    printf("made it to select\n");
+    for(;;){
+        // Setting timeout
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
+        select(biggest + 1, &readfds, NULL, NULL, &tv);
+        for( i = 0; i < returnCount; i++){
+            if(FD_ISSET(returnArg[i].sockfd, &readfds)){
+                printf("socket Ready\n");
+            }
         }
 
     }
