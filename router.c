@@ -39,6 +39,7 @@ struct tableEntry {
 pthread_mutex_t mutexsum;
 int tableEntry = 0;
 struct tableEntry table[MAX_EDGES]; 
+FILE *OUTPUT;
 
 // Prints a buffer
 void printBuffer(char* buffer){
@@ -48,15 +49,17 @@ void printBuffer(char* buffer){
     struct tableEntry* thisEntry;
 
     // The first part of the buffer has the count
+    fprintf(OUTPUT, "PACKET RECEIVED\n");
     count = (int) *buffer;
     for(i = 0; i < count; i++){
         // Pulls the table entry out of memory
         thisEntry = (struct tableEntry*) (buffer + sizeof(int)+
                 (i * sizeof(struct tableEntry)));
 
-        printf("<%c,%i,%c,%i,%i>\n", thisEntry->host, thisEntry->fromPort,
+        fprintf(OUTPUT, "<%c,%i,%c,%i,%i>\n", thisEntry->host, thisEntry->fromPort,
                 thisEntry->target, thisEntry->toPort, thisEntry->weight);
     }
+    fprintf(OUTPUT, "PACKET END\n\n");
 }
 
 void fillBuffer(char* buffer, char host){
@@ -82,12 +85,15 @@ void fillBuffer(char* buffer, char host){
 void printGraph(struct tableEntry* table, int tableSize){
     int i = 0;
     struct tableEntry* thisEntry;
+    fprintf(OUTPUT, "GRAPH STATE\n");
     for(i = 0; i < tableSize; i++){
         thisEntry = (table + i * sizeof(struct tableEntry));
-        printf("<%c,%i,%c,%i,%i>\n", thisEntry->host, thisEntry->fromPort,
+        fprintf(OUTPUT, "<%c,%i,%c,%i,%i>\n", thisEntry->host, thisEntry->fromPort,
                 thisEntry->target, thisEntry->toPort, thisEntry->weight);
 
     }
+    fprintf(OUTPUT, "END STATE\n\n");
+    
 }
 
 // Fills a graph with a buffer, and sees if the data already exists
@@ -108,7 +114,6 @@ int fillGraph(struct tableEntry* table, int* tableSize, char* buffer){
             second = (void*)(buffer + sizeof(int) + j*sizeof(struct tableEntry));
             result = memcmp(first,second, sizeof(struct tableEntry));
             if(result == 0){
-                printf("seen i %i, j %i\n", i, j);
                 return 0;
             }
         }
@@ -225,9 +230,7 @@ int smallest(int* distance, int intTarget){
     int targetWeight = *(distance + intTarget * sizeof(int));
     for(i = 0; i < 6; i++){
         current = *(distance + i * sizeof(int));
-        //printf("current %i smallest %i intTarget %i\n", smallest, current, targetWeight);
         if(current < smallest && (current > targetWeight || (current == targetWeight && i > intTarget))){
-            //printf("SWAP\n");
             smallest = current;
             index = i;
         }
@@ -263,7 +266,6 @@ void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start
         }
         // find the smallest node bigger than the last target
         intTarget = smallest(distance, intTarget);
-        //printf("New Piviot: %i\n", intTarget);
         if (intTarget == -1){
             printf("Dijkstras fail\n");
             return;
@@ -274,9 +276,11 @@ void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start
 }
 
 void printDistance(int* distance){
-    printf("A%iB%ic%iD%iE%iF%i\n", *distance, *(distance + 1 * sizeof(int)),
+    fprintf(OUTPUT, "DIJEKSTRAS\n");
+    fprintf(OUTPUT, "A%iB%ic%iD%iE%iF%i\n", *distance, *(distance + 1 * sizeof(int)),
             *(distance + 2 * sizeof(int)),*(distance + 3 * sizeof(int)),
             *(distance + 4 * sizeof(int)),*(distance + 5 * sizeof(int)));
+    fprintf(OUTPUT, "END DIJEKSTRAS\n\n");
 }
 
 int main(int argc, char** argv){
@@ -302,6 +306,7 @@ int main(int argc, char** argv){
     int* portArg;
     int* clientArg;
     int weight = 0;
+    int timeout = 0;
     int threadCount = 0;
     int check;
     int clientLength;
@@ -317,7 +322,13 @@ int main(int argc, char** argv){
     clientArg = (int*) malloc(sizeof(int) * MAX_PORTS);
 
     // Opening the init file
-    fp = fopen("init.txt", "r");
+    fp = fopen(argv[2], "r");
+    OUTPUT = fopen(argv[3], "w");
+    if (OUTPUT == NULL){
+        printf("can not open file\n");
+        return(0);
+    }
+    fprintf(OUTPUT, "data\n");
     while (getline(&line, &length, fp) != -1){
         // Assuming that the ID has one length only reads valid lines
         if(line[1] == routerID[0]){
@@ -397,31 +408,33 @@ int main(int argc, char** argv){
         check = recvfrom(returnArg[i].sockfd, bleh, BUFFER_SIZE, 0,
                 (struct sockaddr *)&thisAddr,
                 &clientLength);
+        printf("packet start\n\n");
+        printBuffer(bleh);
+        printf("\npacket end\n");
         if(check > 0){
+            printf("filling Graph\n");
             check = fillGraph(graph, &tableSize, bleh);
             if(check != 0){
                 printGraph(graph, tableSize);
                 dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
                 printDistance(distance);
-                printf("echo\n");
                 int j;
                 // send on all ports minus current port
                 for(j = 0; j < returnCount; j++){
-                    printf("beforePrint\n");
-                    printf(" %i == %i\n", returnArg[i].sockfd, returnArg[j].sockfd);
                     if(returnArg[i].sockfd != returnArg[j].sockfd){
-                        printf("echoing here %i\n", j);
+                        printf("echo\n");
                         check = sendto(returnArg[j].sockfd, bleh,
                                 *((int*) bleh) * sizeof(struct tableEntry) +
                                 sizeof(int), 0,
                                 (struct sockaddr *)&(returnArg[i].serverAddr),
                                 sizeof(struct sockaddr_in));
-
+                        if(check < 1){
+                            printf("FAIL %s\n", strerror(errno));
+                        }
                     }
-                    printf("after if %i---%i\n", j, returnCount);
                 }
-                printf("here??\n");
             }
+            else printf("seen\n");
         }
         else{
             printf("FAIL %s \n", strerror(errno));
@@ -432,26 +445,31 @@ int main(int argc, char** argv){
     int retval;
     fd_set readfds;
     struct timeval tv;
+
     FD_ZERO(&readfds);
     // Setting fd set
-    printf("setting up set\n");
+    FD_SET(0,&readfds);
+    printf("RETURNCOUNT %i\n", returnCount);
     for( i = 0; i < returnCount; i++){
         FD_SET(returnArg[i].sockfd, &readfds);
+        printf("sockfd %i\n",returnArg[i].sockfd);
         if (returnArg[i].sockfd > biggest){
             biggest = returnArg[i].sockfd;
+            printf("biggest %i\n", returnArg[i].sockfd);
         }
-
     }
 
-    printf("made it to select\n");
+    
     for(;;){
+
         // Setting timeout
         tv.tv_sec = 5;
         tv.tv_usec = 0;
         retval = select(biggest + 1, &readfds, NULL, NULL, &tv);
+        printf("one loop\n");
         for( i = 0; i < returnCount; i++){
-            if(FD_ISSET(returnArg[i].sockfd, &readfds)){
-                printf("socket Ready\n");
+           if(FD_ISSET(returnArg[i].sockfd, &readfds)){
+                printf("I heard socket %i\n", i);
                 char* bleh = malloc(100 * sizeof(char));
                 struct sockaddr_in thisAddr = returnArg[i].serverAddr;
                 check = recvfrom(returnArg[i].sockfd, bleh, BUFFER_SIZE, 0,
@@ -459,18 +477,18 @@ int main(int argc, char** argv){
                         &clientLength);
                 if(check > 0){
                     check = fillGraph(graph, &tableSize, bleh);
+                    printf("packet start select\n\n");
+                    printBuffer(bleh);
+                    printf("\npacket end select\n");
                     if(check != 0){
                         printGraph(graph, tableSize);
                         dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
                         printDistance(distance);
-                        printf("echo\n");
                         int j;
-                        // send on all ports minus current port
+                         //send on all ports minus current port
                         for(j = 0; j < returnCount; j++){
-                            printf("beforePrint\n");
-                            printf(" %i == %i\n", returnArg[i].sockfd, returnArg[j].sockfd);
                             if(returnArg[i].sockfd != returnArg[j].sockfd){
-                                printf("echoing here %i\n", j);
+                                printf("echo\n");
                                 check = sendto(returnArg[j].sockfd, bleh,
                                         *((int*) bleh) * sizeof(struct tableEntry) +
                                         sizeof(int), 0,
@@ -478,19 +496,45 @@ int main(int argc, char** argv){
                                         sizeof(struct sockaddr_in));
 
                             }
-                            printf("after if %i---%i\n", j, returnCount);
                         }
-                        printf("here??\n");
                     }
                     else printf("SEEN DAT\n");
 
+                } else {
+                    printf("FAIL %s\n", strerror(errno));
+                    return(0);
                 }
             }
 
         }
+        printf("END LOOP\n");
         if(retval == 0){
             // Sending the link state
+            if(timeout > 1){
+                printf("exit\n");
+                fclose(OUTPUT);
+                printf("closed\n");
+                fclose(fp);
+                return(0);
+            }
+            timeout++;
+ 
             printf("TIMEOUT\n");
+            fillBuffer((char*)buffer, routerID[0]);
+            for( i = 0; i < returnCount; i++){
+                check = sendto(returnArg[i].sockfd, buffer,
+                        *((int*) buffer) * sizeof(struct tableEntry) + sizeof(int), 0,
+                        (struct sockaddr *)&(returnArg[i].serverAddr),
+                        sizeof(struct sockaddr_in));
+
+                if (check == -1) {
+                    int mistake = errno;
+                    printf("%s", strerror(mistake));
+                    printf("ARRRRRG\n");
+                }
+            }
+ 
+            sleep(5);
         }
         
     }
@@ -499,6 +543,7 @@ int main(int argc, char** argv){
 
         // Cleanup
         pthread_mutex_destroy(&mutexsum);
+        fclose(OUTPUT);
         fclose(fp);
         free(line);
         free(portArg);
