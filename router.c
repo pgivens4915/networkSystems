@@ -239,9 +239,33 @@ int smallest(int* distance, int intTarget){
     return index;
 }
 
+char findNode(char* direction, char start, char current){
+   int index = current - 'A';
+   char pointsTo = *(direction + index * sizeof(char)); 
+   int pointInt = pointsTo - 'A';
+   printf("START %c\n", start);
+   printf("%c-->%c\n", current, pointsTo);
+   // Base case, we are one hop away from the target
+   printf("this %c\n", *(direction + pointInt * sizeof(char)));
+   if (pointsTo == start){
+       printf("BASE CASE REACHED\n");
+       return current;
+   }
+   else{
+       if (current == 'A' || current == 'B' ||current == 'C' ||current == 'D' 
+               ||current == 'E' ||current == 'F'){
+           return (findNode(direction, start, *(direction + index * sizeof(char))));
+       }
+       else return(0);
+   }
+}
+
 // Does dijkstras alg on a list
-void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start){
+void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start,
+        char* direction){
+
     char target = start;
+    char port;
     int i;
     int intTarget = start - 'A';
     int path;
@@ -252,6 +276,7 @@ void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start
     }
     // Setting start to zero
     *(distance + intTarget * sizeof(int)) = 0;
+    *(direction + intTarget * sizeof(char)) = start;
 
     // Now we loop until done
     for(i = 1; i < 6; i++){
@@ -261,6 +286,16 @@ void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start
                 nodeDist = *(distance + intTarget * sizeof(int));
                 if (path + nodeDist < (*(distance + node * sizeof(int)) )){
                     *(distance + node * sizeof(int)) =  path + nodeDist;
+                    // Adding the direction
+                    if( 'A' + intTarget == start){
+                        printf("in here with %c\n", node + 'A');
+                        *(direction + node * sizeof(char)) = start;
+                    }
+                    else{
+                        port = findNode(direction, start, 'A' + intTarget);
+                        *(direction + node * sizeof(char)) = port;
+                    }
+
                 }
             }
         }
@@ -272,15 +307,29 @@ void dijkstra(struct tableEntry* graph, int graphSize, int* distance, char start
 
         }
     }
+    for(i = 1; i < 6; i++){
+        if(*(direction + i * sizeof(char)) == start){
+           *(direction + i * sizeof(char)) = 'A' + i; 
+        }
+    }
 
 }
 
-void printDistance(int* distance){
+void printDistance(int* distance, char* direction){
     fprintf(OUTPUT, "DIJEKSTRAS\n");
-    fprintf(OUTPUT, "A%iB%ic%iD%iE%iF%i\n", *distance, *(distance + 1 * sizeof(int)),
+    fprintf(OUTPUT, "A:%i B:%i C:%i D:%i E:%i F:%i\n", *distance, *(distance + 1 * sizeof(int)),
             *(distance + 2 * sizeof(int)),*(distance + 3 * sizeof(int)),
             *(distance + 4 * sizeof(int)),*(distance + 5 * sizeof(int)));
+    printf("A:%i B:%i C:%i D:%i E:%i F:%i\n", *distance, *(distance + 1 * sizeof(int)),
+            *(distance + 2 * sizeof(int)),*(distance + 3 * sizeof(int)),
+            *(distance + 4 * sizeof(int)),*(distance + 5 * sizeof(int)));
+    fprintf(OUTPUT, "A:%c B:%c C:%c D:%c E:%c F:%c\n", *direction, *(direction+ 1 * sizeof(char)),
+            *(direction + 2 * sizeof(char)),*(direction + 3 * sizeof(char)),
+            *(direction + 4 * sizeof(char)),*(direction+ 5 * sizeof(char)));
     fprintf(OUTPUT, "END DIJEKSTRAS\n\n");
+    printf("A:%c B:%c C:%c D:%c E:%c F:%c\n", *direction, *(direction+ 1 * sizeof(char)),
+            *(direction + 2 * sizeof(char)),*(direction + 3 * sizeof(char)),
+            *(direction + 4 * sizeof(char)),*(direction+ 5 * sizeof(char)));
 }
 
 int main(int argc, char** argv){
@@ -312,6 +361,7 @@ int main(int argc, char** argv){
     int clientLength;
     size_t length = 0;
     char * line = NULL;
+    char * direction;
     FILE *fp;
 
     // Initing mutex
@@ -320,6 +370,7 @@ int main(int argc, char** argv){
     // Mallocing
     portArg = (int*) malloc(sizeof(int) * MAX_PORTS);
     clientArg = (int*) malloc(sizeof(int) * MAX_PORTS);
+    direction = (char*) malloc(sizeof(char) * MAX_PORTS);
 
     // Opening the init file
     fp = fopen(argv[2], "r");
@@ -388,8 +439,8 @@ int main(int argc, char** argv){
     fillBuffer((char*)buffer, routerID[0]);
     check = fillGraph(graph, &tableSize, (char*)buffer);
     printGraph(graph, tableSize);
-    dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
-    printDistance(distance);
+    dijkstra(graph,tableSize, (int*)distance, routerID[0], direction); 
+    printDistance(distance, direction);
     for( i = 0; i < returnCount; i++){
         check = sendto(returnArg[i].sockfd, buffer,
                 *((int*) buffer) * sizeof(struct tableEntry) + sizeof(int), 0,
@@ -416,8 +467,8 @@ int main(int argc, char** argv){
             check = fillGraph(graph, &tableSize, bleh);
             if(check != 0){
                 printGraph(graph, tableSize);
-                dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
-                printDistance(distance);
+                dijkstra(graph,tableSize, (int*)distance, routerID[0], direction); 
+                printDistance(distance, direction);
                 int j;
                 // send on all ports minus current port
                 for(j = 0; j < returnCount; j++){
@@ -482,8 +533,8 @@ int main(int argc, char** argv){
                     printf("\npacket end select\n");
                     if(check != 0){
                         printGraph(graph, tableSize);
-                        dijkstra(graph,tableSize, (int*)distance, routerID[0]); 
-                        printDistance(distance);
+                        dijkstra(graph,tableSize, (int*)distance, routerID[0], direction); 
+                        printDistance(distance, direction);
                         int j;
                          //send on all ports minus current port
                         for(j = 0; j < returnCount; j++){
