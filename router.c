@@ -561,7 +561,7 @@ int main(int argc, char** argv){
         printf("END LOOP\n");
         if(retval == 0){
             // Sending the link state
-            if(timeout > 1){
+            if(timeout > 4){
                 printf("exit\n");
                 fclose(OUTPUT);
                 printf("closed\n");
