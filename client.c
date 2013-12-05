@@ -16,14 +16,16 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
   // Appending the strings
   strcat(packet, name);
   // Sending the string!
+  printf("Sending name\n");
   sendto(serverFd, packet, MAX_NAME_SIZE + 1, 0,
         (struct sockaddr*) serverAddr, size);
+  perror("AN ERROR");
 }
 
 int main(int argc, char* argv[]){
   char* message;
   message = malloc(1024);
-  char name[MAX_NAME_SIZE] = "Client Name";
+  char name[MAX_NAME_SIZE] = "Client Name\n";
   int plusOne = 1;
   int listenFd;
   int serverFd;
@@ -53,12 +55,13 @@ int main(int argc, char* argv[]){
   connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
 
   size = sizeof(serverAddr);
+  // Registering the clients name
+  registerName(serverFd, &serverAddr, size, name);
+
   sendto(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, size);
   recvfrom(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, &size);
   printf("%s", message);
 
-  // Registering the clients name
-  registerName(serverFd, &serverAddr, size, name);
 
 
   for(;;){

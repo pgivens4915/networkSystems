@@ -46,9 +46,10 @@ int main(int argc, char* argv[]){
     printf("%s", mesg);
     switch(mesg[0]){
       case '1':
+      printf("In case 1\n");
       entry.clientAddr = clientAddr;
       // Copy the name
-      printf(entry.name,"%s", (mesg + 1));
+      sprintf(entry.name,"%s", (mesg + 1));
       clientList[clientNamePointer] = entry;
 
       break;
