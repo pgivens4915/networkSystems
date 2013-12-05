@@ -8,6 +8,7 @@
 
 int main(int argc, char* argv[]){
   char* message;
+  message = malloc(1024);
   int plusOne = 1;
   int listenFd;
   int serverFd;
@@ -24,13 +25,18 @@ int main(int argc, char* argv[]){
   FD_SET(0, &master);
   
   // Connecting to the server
+  serverFd = socket(AF_INET, SOCK_STREAM, 0);
   bzero(&serverAddr, sizeof(serverAddr));
   serverAddr.sin_family = AF_INET;
   serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
   serverAddr.sin_port = htons(9000);
 
-  bind(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+  connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+  perror("Connect fail");
 
+  // Debuging string
+  sprintf(message, "Woot\n");
+  // End debug
   size = sizeof(serverAddr);
   sendto(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, size);
 

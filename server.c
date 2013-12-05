@@ -24,15 +24,19 @@ int main(int argc, char* argv[]){
   
   bind(listenFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
 
+  printf("Before listen\n");
   listen(listenFd, 1024);
 
   for(;;){
     clientLen = sizeof(clientAddr);
+    printf("Before accept\n");
     clientFd = accept(listenFd, (struct sockaddr *) &clientAddr, &clientLen);
     // Receiving bits
     length = sizeof(clientAddr);
+    printf("Before recvfrom\n");
     size = recvfrom(clientFd, mesg, 1024, 0, (struct sockaddr *) &clientAddr,
                     &length);
+    printf("%s", mesg);
 
     mesg[0] = '9';
     sendto(clientFd, mesg, size, 0, (struct sockaddr *) &clientAddr, length);
