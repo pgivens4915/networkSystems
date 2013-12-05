@@ -3,6 +3,13 @@
 #include <netinet/in.h>
 #include <strings.h>
 #include <arpa/inet.h>
+#define MAX_NAME_SIZE 64
+#define MAX_CLIENTS 10
+
+struct clientEntry{
+  char name[MAX_NAME_SIZE];
+  struct sockaddr_in clientAddr;
+};
 
 
 int main(int argc, char* argv[]){
@@ -10,6 +17,9 @@ int main(int argc, char* argv[]){
   int clientFd;
   int size;
   int length;
+  int clientNamePointer = 0;
+  struct clientEntry clientList[MAX_CLIENTS];
+  struct clientEntry entry;
   struct sockaddr_in serverAddr;
   struct sockaddr_in clientAddr;
   socklen_t clientLen;
@@ -34,8 +44,16 @@ int main(int argc, char* argv[]){
     size = recvfrom(clientFd, mesg, 1024, 0, (struct sockaddr *) &clientAddr,
                     &length);
     printf("%s", mesg);
+    switch(mesg[0]){
+      case '1':
+      entry.clientAddr = clientAddr;
+      // Copy the name
+      printf(entry.name,"%s", (mesg + 1));
+      clientList[clientNamePointer] = entry;
 
-    mesg[0] = '9';
+      break;
+    }
+
     sendto(clientFd, mesg, size, 0, (struct sockaddr *) &clientAddr, length);
     
   }

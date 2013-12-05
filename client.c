@@ -2,13 +2,28 @@
 #include <sys/select.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <string.h>
 #include <strings.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#define MAX_NAME_SIZE 64
+
+void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
+                  char* name){
+  // 1 is the packet number that lets the server know
+  // we are registering a name
+  char packet[MAX_NAME_SIZE + 1] = "1";
+  // Appending the strings
+  strcat(packet, name);
+  // Sending the string!
+  sendto(serverFd, packet, MAX_NAME_SIZE + 1, 0,
+        (struct sockaddr*) serverAddr, size);
+}
 
 int main(int argc, char* argv[]){
   char* message;
   message = malloc(1024);
+  char name[MAX_NAME_SIZE] = "Client Name";
   int plusOne = 1;
   int listenFd;
   int serverFd;
@@ -42,6 +57,9 @@ int main(int argc, char* argv[]){
   recvfrom(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, &size);
   printf("%s", message);
 
+  // Registering the clients name
+  registerName(serverFd, &serverAddr, size, name);
+
 
   for(;;){
     read_fds = master;
@@ -55,3 +73,4 @@ int main(int argc, char* argv[]){
     }
   }
 }
+
