@@ -50,6 +50,7 @@ int main(int argc, char* argv[]){
       printf("%s Connected\n", (mesg + 1));
       sprintf(entry.name,"%s", (mesg + 1));
       clientList[clientNamePointer] = entry;
+      clientNamePointer++;
 
       break;
     }

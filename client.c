@@ -7,11 +7,13 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #define MAX_NAME_SIZE 64
 
 void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
                   char* name){
   DIR *dir;
+  struct stat st;
   struct dirent *ent;
   // 1 is the packet number that lets the server know
   // we are registering a name
@@ -26,9 +28,13 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
     perror("DIRECTORY ERROR");
     exit(1);
   }
+  // Getting the names and sizes
   while((ent = readdir(dir)) != NULL){
+    // If it is not a hidden file
     if((ent->d_name)[0] != '.'){
-      printf("%s\n", ent->d_name);
+      printf("%s ", ent->d_name);
+      stat(ent->d_name, &st);
+      printf("%i\n", (int)st.st_size);
     }
   }
 
