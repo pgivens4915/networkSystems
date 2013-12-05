@@ -9,12 +9,21 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #define MAX_NAME_SIZE 64
+#define MAX_FILE_COUNT 20
+
+struct fileEntry{
+  char name[MAX_NAME_SIZE];
+  long long size;
+};
 
 void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
                   char* name){
   DIR *dir;
   struct stat st;
   struct dirent *ent;
+  long long fileSize;
+  struct fileEntry fileTable[MAX_FILE_COUNT];
+  int fileTablePointer = 0;
   // 1 is the packet number that lets the server know
   // we are registering a name
   char packet[MAX_NAME_SIZE + 1] = "1";
@@ -34,9 +43,15 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
     if((ent->d_name)[0] != '.'){
       printf("%s ", ent->d_name);
       stat(ent->d_name, &st);
+      fileSize = (long long) st.st_size;
       printf("%i\n", (int)st.st_size);
+      // Copying the file name into the table
+      strcpy(fileTable[fileTablePointer].name, ent->d_name);
+      fileTable[fileTablePointer].size = fileSize;
+      fileTablePointer++;
     }
   }
+  // Apending the table to the end of the packet
 
 
 }
