@@ -16,25 +16,29 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
   // Appending the strings
   strcat(packet, name);
   // Sending the string!
-  printf("Sending name\n");
   sendto(serverFd, packet, MAX_NAME_SIZE + 1, 0,
         (struct sockaddr*) serverAddr, size);
-  perror("AN ERROR");
 }
 
 int main(int argc, char* argv[]){
   char* message;
   message = malloc(1024);
-  char name[MAX_NAME_SIZE] = "Client Name\n";
+  char name[MAX_NAME_SIZE];
   int plusOne = 1;
   int listenFd;
   int serverFd;
   int size;
+  int portNumber;
   struct sockaddr_in serverAddr;
   struct sockaddr_in clientAddr;
   fd_set master;
   fd_set read_fds;
   size_t length;
+
+  // Copying name from command line
+  strcpy(name, argv[1]);
+  // Getting the port number
+  portNumber = atoi(argv[2]);
 
   // DEBUG message
   sprintf(message, "SENDING\n");
@@ -50,7 +54,7 @@ int main(int argc, char* argv[]){
   bzero(&serverAddr, sizeof(serverAddr));
   serverAddr.sin_family = AF_INET;
   serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  serverAddr.sin_port = htons(9000);
+  serverAddr.sin_port = htons(portNumber);
 
   connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
 
@@ -58,9 +62,7 @@ int main(int argc, char* argv[]){
   // Registering the clients name
   registerName(serverFd, &serverAddr, size, name);
 
-  sendto(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, size);
   recvfrom(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, &size);
-  printf("%s", message);
 
 
 

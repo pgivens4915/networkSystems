@@ -43,12 +43,11 @@ int main(int argc, char* argv[]){
     length = sizeof(clientAddr);
     size = recvfrom(clientFd, mesg, 1024, 0, (struct sockaddr *) &clientAddr,
                     &length);
-    printf("%s", mesg);
     switch(mesg[0]){
       case '1':
-      printf("In case 1\n");
       entry.clientAddr = clientAddr;
       // Copy the name
+      printf("%s Connected\n", (mesg + 1));
       sprintf(entry.name,"%s", (mesg + 1));
       clientList[clientNamePointer] = entry;
 
