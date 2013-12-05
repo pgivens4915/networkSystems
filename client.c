@@ -6,10 +6,13 @@
 #include <strings.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <dirent.h>
 #define MAX_NAME_SIZE 64
 
 void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
                   char* name){
+  DIR *dir;
+  struct dirent *ent;
   // 1 is the packet number that lets the server know
   // we are registering a name
   char packet[MAX_NAME_SIZE + 1] = "1";
@@ -18,6 +21,18 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
   // Sending the string!
   sendto(serverFd, packet, MAX_NAME_SIZE + 1, 0,
         (struct sockaddr*) serverAddr, size);
+  // Local file info
+  if ((dir = opendir(".")) == NULL){
+    perror("DIRECTORY ERROR");
+    exit(1);
+  }
+  while((ent = readdir(dir)) != NULL){
+    if((ent->d_name)[0] != '.'){
+      printf("%s\n", ent->d_name);
+    }
+  }
+
+
 }
 
 int main(int argc, char* argv[]){
