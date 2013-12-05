@@ -18,6 +18,10 @@ int main(int argc, char* argv[]){
   fd_set master;
   fd_set read_fds;
   size_t length;
+
+  // DEBUG message
+  sprintf(message, "SENDING\n");
+  // End debug messge
   
   FD_ZERO(&master);
   FD_ZERO(&master);
@@ -32,25 +36,22 @@ int main(int argc, char* argv[]){
   serverAddr.sin_port = htons(9000);
 
   connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
-  perror("Connect fail");
 
-  // Debuging string
-  sprintf(message, "Woot\n");
-  // End debug
   size = sizeof(serverAddr);
   sendto(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, size);
+  recvfrom(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, &size);
+  printf("%s", message);
+
 
   for(;;){
     read_fds = master;
     
     if(select(plusOne, &read_fds, 0, 0, 0) == -1){
-      printf("Select Error\n");
       return(1);
     }
 
     if(FD_ISSET(0, &read_fds)){
       getline(&message, &length, stdin);
-      printf(":%s:\n", message);
     }
   }
 }
