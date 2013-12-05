@@ -2,6 +2,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <strings.h>
+#include <arpa/inet.h>
+
 
 int main(int argc, char* argv[]){
   int listenFd;
@@ -17,7 +19,7 @@ int main(int argc, char* argv[]){
 
   bzero(&serverAddr, sizeof(serverAddr));
   serverAddr.sin_family = AF_INET;
-  serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
   serverAddr.sin_port = htons(9000);
   
   bind(listenFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
