@@ -51,8 +51,9 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
       fileTablePointer++;
     }
   }
-  // Apending the table to the end of the packet
-
+  // Sending the table
+  sendto(serverFd, fileTable, sizeof(struct fileEntry) * fileTablePointer, 0,
+        (struct sockaddr*) serverAddr, size);
 
 }
 

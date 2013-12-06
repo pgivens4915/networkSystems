@@ -3,8 +3,16 @@
 #include <netinet/in.h>
 #include <strings.h>
 #include <arpa/inet.h>
+#include <stdlib.h>
 #define MAX_NAME_SIZE 64
 #define MAX_CLIENTS 10
+#define MAX_FILE_COUNT 20
+
+struct fileEntry{
+  char name[MAX_NAME_SIZE];
+  long long size;
+};
+
 
 struct clientEntry{
   char name[MAX_NAME_SIZE];
@@ -18,6 +26,9 @@ int main(int argc, char* argv[]){
   int size;
   int length;
   int clientNamePointer = 0;
+  int i;
+  int socketId = atoi(argv[1]);
+  struct fileEntry* fileEntryPointer;
   struct clientEntry clientList[MAX_CLIENTS];
   struct clientEntry entry;
   struct sockaddr_in serverAddr;
@@ -30,7 +41,7 @@ int main(int argc, char* argv[]){
   bzero(&serverAddr, sizeof(serverAddr));
   serverAddr.sin_family = AF_INET;
   serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  serverAddr.sin_port = htons(9000);
+  serverAddr.sin_port = htons(socketId);
   
   bind(listenFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
 
@@ -51,6 +62,16 @@ int main(int argc, char* argv[]){
       sprintf(entry.name,"%s", (mesg + 1));
       clientList[clientNamePointer] = entry;
       clientNamePointer++;
+
+      // Recieving the table
+      size = recvfrom(clientFd, mesg, sizeof(struct fileEntry) * MAX_FILE_COUNT,
+                      0, (struct sockaddr *) &clientAddr, &length);
+      // Iterating through the table
+      printf("Before table point %i\n", size);
+      for(i = 0; i <= size; i += sizeof(struct fileEntry)){
+        struct fileEntry* currentEntry = (struct fileEntry*) (mesg + i);
+        printf("%s\n", currentEntry->name);
+      }
 
       break;
     }
