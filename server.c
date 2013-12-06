@@ -43,9 +43,9 @@ void printMasterTable(struct masterEntry masterList[], int masterListPoint){
     strcpy(host, entry.fileData.host);
     size = entry.fileData.size;
     strcpy(ip, inet_ntoa(entry.address));
-    port = entry.port;
+    port = ntohs(entry.port);
 
-    printf("%s | %i | %s | %s | %i\n", name, size, host, ip, port);
+    printf("%s | %i | %s | %s | %u\n", name, size, host, ip, port);
   }
 }
 
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]){
   int clientNamePointer = 0;
   int i;
   int socketId = atoi(argv[1]);
-  int masterListPoint;
+  int masterListPoint = 0;
   struct fileEntry* fileEntryPointer;
   struct clientEntry clientList[MAX_CLIENTS];
   struct clientEntry entry;
@@ -113,6 +113,7 @@ int main(int argc, char* argv[]){
         addEntry(masterList, &masterListPoint, clientAddr, *currentEntry);
       }
       printMasterTable(masterList, masterListPoint);
+      masterListPoint--;
 
       break;
     }
