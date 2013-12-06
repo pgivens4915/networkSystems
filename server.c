@@ -4,12 +4,15 @@
 #include <strings.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
 #define MAX_NAME_SIZE 64
 #define MAX_CLIENTS 10
 #define MAX_FILE_COUNT 20
 
 struct fileEntry{
   char name[MAX_NAME_SIZE];
+  char host[MAX_NAME_SIZE];
   long long size;
 };
 
@@ -19,6 +22,40 @@ struct clientEntry{
   struct sockaddr_in clientAddr;
 };
 
+struct masterEntry{
+  struct fileEntry fileData;
+  struct in_addr address;
+  uint16_t port;
+
+};
+
+void printMasterTable(struct masterEntry masterList[], int masterListPoint){
+  int i;
+  char name[MAX_NAME_SIZE];
+  char host[MAX_NAME_SIZE];
+  char ip[MAX_NAME_SIZE];
+  int size;
+  int port;
+  struct masterEntry entry;
+  for(i = 0; i < masterListPoint -1; i++){
+    entry = masterList[i];
+    strcpy(name, entry.fileData.name);
+    strcpy(host, entry.fileData.host);
+    size = entry.fileData.size;
+    strcpy(ip, inet_ntoa(entry.address));
+    port = entry.port;
+
+    printf("%s | %i | %s | %s | %i\n", name, size, host, ip, port);
+  }
+}
+
+void addEntry(struct masterEntry masterList[], int* masterListPoint,
+              struct sockaddr_in clientAddr, struct fileEntry fileData){
+  masterList[*(masterListPoint)].address = clientAddr.sin_addr;
+  masterList[*(masterListPoint)].port = clientAddr.sin_port;
+  masterList[*(masterListPoint)].fileData = fileData;
+  (*masterListPoint)++;
+}
 
 int main(int argc, char* argv[]){
   int listenFd;
@@ -28,11 +65,13 @@ int main(int argc, char* argv[]){
   int clientNamePointer = 0;
   int i;
   int socketId = atoi(argv[1]);
+  int masterListPoint;
   struct fileEntry* fileEntryPointer;
   struct clientEntry clientList[MAX_CLIENTS];
   struct clientEntry entry;
   struct sockaddr_in serverAddr;
   struct sockaddr_in clientAddr;
+  struct masterEntry masterList[MAX_CLIENTS * MAX_FILE_COUNT];
   socklen_t clientLen;
   char mesg[1024] = "TEST\n";
 
@@ -70,8 +109,10 @@ int main(int argc, char* argv[]){
       printf("Before table point %i\n", size);
       for(i = 0; i <= size; i += sizeof(struct fileEntry)){
         struct fileEntry* currentEntry = (struct fileEntry*) (mesg + i);
-        printf("%s\n", currentEntry->name);
+        // Register the data in a new table
+        addEntry(masterList, &masterListPoint, clientAddr, *currentEntry);
       }
+      printMasterTable(masterList, masterListPoint);
 
       break;
     }

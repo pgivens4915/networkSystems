@@ -13,6 +13,7 @@
 
 struct fileEntry{
   char name[MAX_NAME_SIZE];
+  char host[MAX_NAME_SIZE];
   long long size;
 };
 
@@ -47,6 +48,8 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
       printf("%i\n", (int)st.st_size);
       // Copying the file name into the table
       strcpy(fileTable[fileTablePointer].name, ent->d_name);
+      // copying the hostname
+      strcpy(fileTable[fileTablePointer].host, name);
       fileTable[fileTablePointer].size = fileSize;
       fileTablePointer++;
     }
