@@ -124,8 +124,10 @@ int main(int argc, char* argv[]){
   int size;
   int portNumber;
   int masterListPoint = 0;
+  int transferPort;
+  int transferFd;
   struct sockaddr_in serverAddr;
-  struct sockaddr_in clientAddr;
+  struct sockaddr_in transferAddr;
   struct masterEntry masterList[MAX_CLIENTS * MAX_FILE_COUNT];
   fd_set master;
   fd_set read_fds;
@@ -135,6 +137,7 @@ int main(int argc, char* argv[]){
   strcpy(name, argv[1]);
   // Getting the port number
   portNumber = atoi(argv[2]);
+  transferPort = atoi(argv[3]);
 
   // DEBUG message
   sprintf(message, "SENDING\n");
@@ -158,6 +161,15 @@ int main(int argc, char* argv[]){
   // Registering the clients name
   registerName(serverFd, &serverAddr, size, name);
   close(serverFd);
+
+  // Opening a port for file transfer
+  transferFd = socket(AF_INET, SOCK_STREAM, 0);
+  bzero(&transferAddr, sizeof(transferAddr));
+  transferAddr.sin_family = AF_INET;
+  transferAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  transferAddr.sin_port = htons(transferPort);
+  bind(transferFd, (struct sockaddr*) &transferAddr, sizeof(transferAddr));
+  listen(transferFd, 1024);
 
   printf("Init over\n");
 
