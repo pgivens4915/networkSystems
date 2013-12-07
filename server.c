@@ -45,7 +45,7 @@ void printMasterTable(struct masterEntry masterList[], int masterListPoint){
     strcpy(ip, inet_ntoa(entry.address));
     port = entry.fileData.port;
 
-    printf("%s | %i | %s | %s | %u\n", name, size, host, ip, port);
+    printf("%s | %i | %s | %s | %i\n", name, size, host, ip, port);
   }
 }
 

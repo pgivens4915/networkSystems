@@ -40,9 +40,9 @@ void printMasterTable(struct masterEntry masterList[], int masterListPoint){
     strcpy(host, entry.fileData.host);
     size = entry.fileData.size;
     strcpy(ip, inet_ntoa(entry.address));
-    port = ntohs(entry.port);
+    port = entry.fileData.port;;
 
-    printf("%s | %i | %s | %s | %u\n", name, size, host, ip, port);
+    printf("%s | %i | %s | %s | %i\n", name, size, host, ip, port);
   }
 }
 
@@ -111,9 +111,39 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
 
 }
 
+// Resolves the address of a needed file
+struct sockaddr_in resolveAddress(struct masterEntry masterList[], 
+                                  int masterListPoint, char* name){
+  int i;
+  struct sockaddr_in addr;
+  // Looking through the list
+  for(i = 0; i < masterListPoint; i++){
+    printf(":%s: == :%s:", masterList[i].fileData.name, name);
+    if(strcmp(masterList[i].fileData.name, name) == 0){
+      addr.sin_family = AF_INET;  
+      addr.sin_addr = masterList[i].address; 
+      addr.sin_port = htons(masterList[i].fileData.port);
+      return(addr);
+    }
+  }
+  printf("File not found\n");
+  addr.sin_port = 0;
+  return(addr);
+}
+
 // Runs the get command
 void get(struct masterEntry masterList[], int masterListPoint){
-  printf("get command\n");
+  char fileName[MAX_NAME_SIZE];
+  struct sockaddr_in fileAddr;
+  printf("Enter filename :\n");
+  scanf("%s", fileName);
+  printf("resolving address\n");
+  fileAddr = resolveAddress(masterList, masterListPoint, fileName);
+  // If file not found
+  if(fileAddr.sin_port == 0){
+    return;
+  }
+  printf("Found file\n");
 }
 
 int main(int argc, char* argv[]){
