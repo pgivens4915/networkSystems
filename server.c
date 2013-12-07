@@ -13,6 +13,7 @@
 struct fileEntry{
   char name[MAX_NAME_SIZE];
   char host[MAX_NAME_SIZE];
+  int port;
   long long size;
 };
 
@@ -42,7 +43,7 @@ void printMasterTable(struct masterEntry masterList[], int masterListPoint){
     strcpy(host, entry.fileData.host);
     size = entry.fileData.size;
     strcpy(ip, inet_ntoa(entry.address));
-    port = ntohs(entry.port);
+    port = entry.fileData.port;
 
     printf("%s | %i | %s | %s | %u\n", name, size, host, ip, port);
   }

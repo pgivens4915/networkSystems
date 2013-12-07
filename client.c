@@ -16,6 +16,7 @@
 struct fileEntry{
   char name[MAX_NAME_SIZE];
   char host[MAX_NAME_SIZE];
+  int port;
   long long size;
 };
 
@@ -67,7 +68,7 @@ void ls(int serverFd, int size, struct sockaddr_in* serverAddr,
 }
 
 void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
-                  char* name){
+                  char* name, int transferPort){
   DIR *dir;
   struct stat st;
   struct dirent *ent;
@@ -100,6 +101,7 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
       // copying the hostname
       strcpy(fileTable[fileTablePointer].host, name);
       fileTable[fileTablePointer].size = fileSize;
+      fileTable[fileTablePointer].port = transferPort ;
       fileTablePointer++;
     }
   }
@@ -159,7 +161,7 @@ int main(int argc, char* argv[]){
 
   size = sizeof(serverAddr);
   // Registering the clients name
-  registerName(serverFd, &serverAddr, size, name);
+  registerName(serverFd, &serverAddr, size, name, transferPort);
   close(serverFd);
 
   // Opening a port for file transfer
