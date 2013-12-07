@@ -133,6 +133,8 @@ struct sockaddr_in resolveAddress(struct masterEntry masterList[],
 // Runs the get command
 void get(struct masterEntry masterList[], int masterListPoint){
   char fileName[MAX_NAME_SIZE];
+  char mesg[10] = "echo\n";
+  int fileSock;
   struct sockaddr_in fileAddr;
   printf("Enter filename :\n");
   scanf("%s", fileName);
@@ -141,7 +143,12 @@ void get(struct masterEntry masterList[], int masterListPoint){
   if(fileAddr.sin_port == 0){
     return;
   }
-  printf("Found file\n");
+  // Attempt to connect to the client with the file
+  fileSock = socket(AF_INET, SOCK_STREAM, 0);
+  connect(fileSock, (struct sockaddr*) &fileAddr, sizeof(fileAddr));
+  sendto(fileSock, mesg, strlen(mesg), 0, (struct sockaddr*) &fileAddr,
+         sizeof(fileAddr));
+  printf("sent\n");
 }
 
 int main(int argc, char* argv[]){
@@ -173,10 +180,6 @@ int main(int argc, char* argv[]){
   sprintf(message, "SENDING\n");
   // End debug messge
   
-  FD_ZERO(&master);
-  FD_ZERO(&master);
-
-  FD_SET(0, &master);
   
   // Connecting to the server
   bzero(&serverAddr, sizeof(serverAddr));
@@ -206,11 +209,14 @@ int main(int argc, char* argv[]){
   fflush(stdout);
 
 
-// Input area
+  // Input area
+  FD_ZERO(&master);
+  FD_SET(0, &master);
+  FD_SET(transferFd, &master);
   for(;;){
     read_fds = master;
     
-    if(select(plusOne, &read_fds, 0, 0, 0) == -1){
+    if(select(transferFd + 1, &read_fds, 0, 0, 0) == -1){
       return(1);
     }
 
@@ -233,6 +239,19 @@ int main(int argc, char* argv[]){
       // Making it look like a terminal
       printf("CLIENT>");
       fflush(stdout);
+    }
+    else if(FD_ISSET(transferFd, &read_fds)){
+      struct sockaddr_in requestAddr;
+      int requestSize;
+      int connectionFd;
+      requestSize = sizeof(requestAddr);
+      printf("Getting a message\n");
+      connectionFd = accept(transferFd, (struct sockaddr*) &requestAddr,
+                            &requestSize);
+      recvfrom(connectionFd, message, 1024, 0,
+               (struct sockaddr *) &requestAddr, &requestSize);
+      printf("%s\n", message);
+      printf("End message\n");
     }
   }
 }
