@@ -118,7 +118,6 @@ struct sockaddr_in resolveAddress(struct masterEntry masterList[],
   struct sockaddr_in addr;
   // Looking through the list
   for(i = 0; i < masterListPoint; i++){
-    printf(":%s: == :%s:", masterList[i].fileData.name, name);
     if(strcmp(masterList[i].fileData.name, name) == 0){
       addr.sin_family = AF_INET;  
       addr.sin_addr = masterList[i].address; 
@@ -137,7 +136,6 @@ void get(struct masterEntry masterList[], int masterListPoint){
   struct sockaddr_in fileAddr;
   printf("Enter filename :\n");
   scanf("%s", fileName);
-  printf("resolving address\n");
   fileAddr = resolveAddress(masterList, masterListPoint, fileName);
   // If file not found
   if(fileAddr.sin_port == 0){
@@ -204,6 +202,8 @@ int main(int argc, char* argv[]){
   listen(transferFd, 1024);
 
   printf("Init over\n");
+  printf("CLIENT>");
+  fflush(stdout);
 
 
 // Input area
@@ -227,6 +227,12 @@ int main(int argc, char* argv[]){
       else if(strcmp(message, "get\n") == 0){
         get(masterList, masterListPoint);
       }
+      else{
+        printf("Command not recognized\n");
+      }
+      // Making it look like a terminal
+      printf("CLIENT>");
+      fflush(stdout);
     }
   }
 }
