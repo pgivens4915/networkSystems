@@ -93,6 +93,8 @@ int main(int argc, char* argv[]){
     length = sizeof(clientAddr);
     size = recvfrom(clientFd, mesg, 1024, 0, (struct sockaddr *) &clientAddr,
                     &length);
+    printf("Got packet\n");
+    printf("%c\n", mesg[0]);
     switch(mesg[0]){
       case '1':
       entry.clientAddr = clientAddr;
@@ -115,6 +117,10 @@ int main(int argc, char* argv[]){
       printMasterTable(masterList, masterListPoint);
       masterListPoint--;
 
+      break;
+      // The ls case
+      case '2':
+      printf("ls requested");
       break;
     }
 

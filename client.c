@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/select.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -17,8 +18,13 @@ struct fileEntry{
   long long size;
 };
 
-void ls(){
+void ls(int serverFD, int size, struct sockaddr_in* serverAddr){
   printf ("Fetching list\n");
+  // Packet identifier for ls == '2'
+  char packet = '2';
+  sendto(serverFD, &packet, sizeof(char), 0, (struct sockaddr*) serverAddr,
+         size);
+  perror("Error");
 }
 
 void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
@@ -94,19 +100,19 @@ int main(int argc, char* argv[]){
   FD_SET(0, &master);
   
   // Connecting to the server
-  serverFd = socket(AF_INET, SOCK_STREAM, 0);
   bzero(&serverAddr, sizeof(serverAddr));
   serverAddr.sin_family = AF_INET;
   serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
   serverAddr.sin_port = htons(portNumber);
 
+  serverFd = socket(AF_INET, SOCK_STREAM, 0);
   connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
 
   size = sizeof(serverAddr);
   // Registering the clients name
   registerName(serverFd, &serverAddr, size, name);
+  close(serverFd);
 
-  //recvfrom(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, &size);
   printf("Init over\n");
 
 
@@ -121,7 +127,11 @@ int main(int argc, char* argv[]){
     if(FD_ISSET(0, &read_fds)){
       getline(&message, &length, stdin);
       if (strcmp(message, "ls\n") == 0){
-        ls();
+        // The ls command
+        serverFd = socket(AF_INET, SOCK_STREAM, 0);
+        connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+        ls(serverFd, size, &serverAddr);
+        close(serverFd);
       }
     }
   }
