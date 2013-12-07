@@ -26,7 +26,6 @@ struct masterEntry{
   struct fileEntry fileData;
   struct in_addr address;
   uint16_t port;
-
 };
 
 void printMasterTable(struct masterEntry masterList[], int masterListPoint){
@@ -55,6 +54,19 @@ void addEntry(struct masterEntry masterList[], int* masterListPoint,
   masterList[*(masterListPoint)].port = clientAddr.sin_port;
   masterList[*(masterListPoint)].fileData = fileData;
   (*masterListPoint)++;
+}
+
+
+void ls(int clientFd, struct sockaddr_in* clientAddr, int* length, 
+        struct masterEntry* masterList, int masterListPoint){
+  int i;
+  masterListPoint++;
+  int size = sizeof(struct masterEntry) * masterListPoint;
+  printf("size %i\n", size);
+  sendto(clientFd, &masterListPoint, sizeof(int), 0,
+         (struct sockaddr*) clientAddr, *length);
+  sendto(clientFd, masterList, size, 0, (struct sockaddr*) clientAddr,
+         *length);
 }
 
 int main(int argc, char* argv[]){
@@ -105,7 +117,8 @@ int main(int argc, char* argv[]){
       clientNamePointer++;
 
       // Recieving the table
-      size = recvfrom(clientFd, mesg, sizeof(struct fileEntry) * MAX_FILE_COUNT,
+      size = recvfrom(clientFd, mesg,
+                      sizeof(struct fileEntry) * MAX_FILE_COUNT,
                       0, (struct sockaddr *) &clientAddr, &length);
       // Iterating through the table
       printf("Before table point %i\n", size);
@@ -120,7 +133,8 @@ int main(int argc, char* argv[]){
       break;
       // The ls case
       case '2':
-      printf("ls requested");
+      printf("ls requested\n");
+      ls(clientFd, &clientAddr, &length, masterList, masterListPoint);
       break;
     }
 

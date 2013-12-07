@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #define MAX_NAME_SIZE 64
 #define MAX_FILE_COUNT 20
+#define MAX_CLIENTS 10
 
 struct fileEntry{
   char name[MAX_NAME_SIZE];
@@ -18,13 +19,51 @@ struct fileEntry{
   long long size;
 };
 
-void ls(int serverFD, int size, struct sockaddr_in* serverAddr){
-  printf ("Fetching list\n");
+struct masterEntry{
+  struct fileEntry fileData;
+  struct in_addr address;
+  uint16_t port;
+};
+
+void printMasterTable(struct masterEntry masterList[], int masterListPoint){
+  int i;
+  char name[MAX_NAME_SIZE];
+  char host[MAX_NAME_SIZE];
+  char ip[MAX_NAME_SIZE];
+  int size;
+  int port;
+  struct masterEntry entry;
+  for(i = 0; i < masterListPoint -1; i++){
+    entry = masterList[i];
+    strcpy(name, entry.fileData.name);
+    strcpy(host, entry.fileData.host);
+    size = entry.fileData.size;
+    strcpy(ip, inet_ntoa(entry.address));
+    port = ntohs(entry.port);
+
+    printf("%s | %i | %s | %s | %u\n", name, size, host, ip, port);
+  }
+}
+
+
+
+void ls(int serverFd, int size, struct sockaddr_in* serverAddr, 
+        struct masterEntry* masterList, int* masterListPoint){
   // Packet identifier for ls == '2'
   char packet = '2';
-  sendto(serverFD, &packet, sizeof(char), 0, (struct sockaddr*) serverAddr,
+  int length;
+  int maxLength;
+  sendto(serverFd, &packet, sizeof(char), 0, (struct sockaddr*) serverAddr,
          size);
-  perror("Error");
+  // Geting the pointer
+  recvfrom(serverFd, masterListPoint, sizeof(int), 0,
+           (struct sockaddr*) serverAddr, &size);
+  // Getting the table
+  maxLength = sizeof(struct masterEntry) * MAX_FILE_COUNT * MAX_CLIENTS;
+  length = recvfrom(serverFd, masterList, maxLength, 0,
+           (struct sockaddr*) serverAddr, &size);
+  printf("length %i\n", length);
+  printMasterTable(masterList, *masterListPoint);
 }
 
 void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
@@ -79,8 +118,10 @@ int main(int argc, char* argv[]){
   int serverFd;
   int size;
   int portNumber;
+  int masterListPoint = 0;
   struct sockaddr_in serverAddr;
   struct sockaddr_in clientAddr;
+  struct masterEntry masterList[MAX_CLIENTS * MAX_FILE_COUNT];
   fd_set master;
   fd_set read_fds;
   size_t length;
@@ -130,7 +171,7 @@ int main(int argc, char* argv[]){
         // The ls command
         serverFd = socket(AF_INET, SOCK_STREAM, 0);
         connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
-        ls(serverFd, size, &serverAddr);
+        ls(serverFd, size, &serverAddr, masterList, &masterListPoint);
         close(serverFd);
       }
     }
