@@ -17,6 +17,10 @@ struct fileEntry{
   long long size;
 };
 
+void ls(){
+  printf ("Fetching list\n");
+}
+
 void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
                   char* name){
   DIR *dir;
@@ -102,10 +106,10 @@ int main(int argc, char* argv[]){
   // Registering the clients name
   registerName(serverFd, &serverAddr, size, name);
 
-  recvfrom(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, &size);
+  //recvfrom(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, &size);
 
 
-
+// Input area
   for(;;){
     read_fds = master;
     
@@ -115,6 +119,9 @@ int main(int argc, char* argv[]){
 
     if(FD_ISSET(0, &read_fds)){
       getline(&message, &length, stdin);
+      if (strcmp(message, "ls") == 0){
+        ls();
+      }
     }
   }
 }
