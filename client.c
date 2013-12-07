@@ -146,9 +146,9 @@ void get(struct masterEntry masterList[], int masterListPoint){
   // Attempt to connect to the client with the file
   fileSock = socket(AF_INET, SOCK_STREAM, 0);
   connect(fileSock, (struct sockaddr*) &fileAddr, sizeof(fileAddr));
-  sendto(fileSock, mesg, strlen(mesg), 0, (struct sockaddr*) &fileAddr,
+  // +1 for the charstop?
+  sendto(fileSock, fileName, strlen(fileName) + 1, 0, (struct sockaddr*) &fileAddr,
          sizeof(fileAddr));
-  printf("sent\n");
 }
 
 int main(int argc, char* argv[]){
