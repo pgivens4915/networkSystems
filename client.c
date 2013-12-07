@@ -109,6 +109,11 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
 
 }
 
+// Runs the get command
+void get(struct masterEntry masterList[], int masterListPoint){
+  printf("get command\n");
+}
+
 int main(int argc, char* argv[]){
   char* message;
   message = malloc(1024);
@@ -167,12 +172,16 @@ int main(int argc, char* argv[]){
 
     if(FD_ISSET(0, &read_fds)){
       getline(&message, &length, stdin);
+      // The ls command
       if (strcmp(message, "ls\n") == 0){
-        // The ls command
         serverFd = socket(AF_INET, SOCK_STREAM, 0);
         connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
         ls(serverFd, size, &serverAddr, masterList, &masterListPoint);
         close(serverFd);
+      }
+      // The get command
+      else if(strcmp(message, "get\n") == 0){
+        get(masterList, masterListPoint);
       }
     }
   }
