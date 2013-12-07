@@ -107,6 +107,7 @@ int main(int argc, char* argv[]){
   registerName(serverFd, &serverAddr, size, name);
 
   //recvfrom(serverFd, message, 1024, 0, (struct sockaddr*) &serverAddr, &size);
+  printf("Init over\n");
 
 
 // Input area
@@ -119,7 +120,7 @@ int main(int argc, char* argv[]){
 
     if(FD_ISSET(0, &read_fds)){
       getline(&message, &length, stdin);
-      if (strcmp(message, "ls") == 0){
+      if (strcmp(message, "ls\n") == 0){
         ls();
       }
     }
