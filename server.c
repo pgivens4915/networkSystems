@@ -57,7 +57,6 @@ void addEntry(struct masterEntry masterList[], int* masterListPoint,
   (*masterListPoint)++;
 }
 
-
 void ls(int clientFd, struct sockaddr_in* clientAddr, int* length, 
         struct masterEntry* masterList, int masterListPoint){
   int i;

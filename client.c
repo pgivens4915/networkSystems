@@ -136,6 +136,8 @@ void get(struct masterEntry masterList[], int masterListPoint){
   char fileName[MAX_NAME_SIZE];
   char mesg[50000] = "echo\n";
   int fileSock;
+  int size;
+  int length;
   FILE* fp;
   struct sockaddr_in fileAddr;
   printf("Enter filename :\n");
@@ -152,9 +154,13 @@ void get(struct masterEntry masterList[], int masterListPoint){
   // +1 for the charstop?
   sendto(fileSock, fileName, strlen(fileName) + 1, 0,
          (struct sockaddr*) &fileAddr, sizeof(fileAddr));
-  while (recv(fileSock, mesg, 50000, 0) > 0){
-    printf("%s", mesg);
+  recv(fileSock, &length, sizeof(int), 0);
+  while ((size = recv(fileSock, mesg, 50000, 0)) > 0){
+    printf("Send %i bytes out of %i\n", size, length);
     fprintf(fp, "%s", mesg);
+    if (size == length){
+      break;
+    }
   }
   fflush(fp);
   fclose(fp);
@@ -255,6 +261,7 @@ int main(int argc, char* argv[]){
       struct sockaddr_in requestAddr;
       int requestSize;
       int connectionFd;
+      int size;
       FILE* fp;
       struct stat stat;
       requestSize = sizeof(requestAddr);
@@ -267,6 +274,8 @@ int main(int argc, char* argv[]){
       fp = fopen(message, "r");
       // Send dat file!
       fstat(fileno(fp), &stat);
+      size = stat.st_size;
+      send(connectionFd, &size, sizeof(int), 0);
       sendfile(connectionFd, fileno(fp), 0, stat.st_size);
       perror("ERROR ");
       printf("End message\n");
