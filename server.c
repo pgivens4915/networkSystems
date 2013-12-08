@@ -69,8 +69,35 @@ void ls(int clientFd, struct sockaddr_in* clientAddr, int* length,
          *length);
 }
 
-void clientExit(char* name){
+void removeEntries(char* name, struct masterEntry masterList[],
+                   int* masterListPoint){
+  int i;
+  // Delete everything in the list
+  for(i = 0; i < *masterListPoint; i++){
+    printf("%i %i\n", i, *masterListPoint);
+    printf("%s == %s\n", masterList[i].fileData.host, name);
+    // If it is the last entry, just delete it
+    if(i == *masterListPoint - 1){
+      (*masterListPoint)--;
+    }
+    // If we found matching strings
+    else if(strcmp(masterList[i].fileData.host, name) == 0){
+      masterList[i] = masterList[*masterListPoint - 1];
+      // recheck the swap
+      i--;
+      (*masterListPoint)--;
+    }
+    printf("End %i %i\n", i, *masterListPoint);
+  }
+  printf("Updated List\n");
+  printMasterTable(masterList, *masterListPoint);
+
+}
+
+void clientExit(char* name, struct masterEntry masterList[],
+                int* masterListPoint){
   printf("Deleting %s\n", name);
+  removeEntries(name, masterList, masterListPoint);
 }
 
 int main(int argc, char* argv[]){
@@ -144,7 +171,7 @@ int main(int argc, char* argv[]){
       case '3':
       printf(":%s:\n", mesg);
       strcpy(nameDel, (mesg+1));
-      clientExit(nameDel);
+      clientExit(nameDel, masterList, &masterListPoint);
       break;
     }
 
