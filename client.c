@@ -152,9 +152,9 @@ void get(struct masterEntry masterList[], int masterListPoint){
   // +1 for the charstop?
   sendto(fileSock, fileName, strlen(fileName) + 1, 0,
          (struct sockaddr*) &fileAddr, sizeof(fileAddr));
-  recv(fileSock, mesg, 50, 0);
-  perror("ERROR: ");
-  printf("->%c<-\n", mesg[0]);
+  while (recv(fileSock, mesg, 50, 0) > 0){
+    printf("%s", mesg);
+  }
   printf("Transfer Done\n");
 
 }
@@ -253,6 +253,7 @@ int main(int argc, char* argv[]){
       int requestSize;
       int connectionFd;
       FILE* fp;
+      struct stat stat;
       requestSize = sizeof(requestAddr);
       printf("Getting a message\n");
       connectionFd = accept(transferFd, (struct sockaddr*) &requestAddr,
@@ -262,7 +263,8 @@ int main(int argc, char* argv[]){
       printf("%s\n", message);
       fp = fopen(message, "r");
       // Send dat file!
-      sendfile(connectionFd, fileno(fp), 0, 50);
+      fstat(fileno(fp), &stat);
+      sendfile(connectionFd, fileno(fp), 0, stat.st_size);
       perror("ERROR ");
       printf("End message\n");
     }
