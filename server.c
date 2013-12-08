@@ -37,7 +37,7 @@ void printMasterTable(struct masterEntry masterList[], int masterListPoint){
   int size;
   int port;
   struct masterEntry entry;
-  for(i = 0; i < masterListPoint -1; i++){
+  for(i = 0; i < masterListPoint; i++){
     entry = masterList[i];
     strcpy(name, entry.fileData.name);
     strcpy(host, entry.fileData.host);
@@ -51,6 +51,7 @@ void printMasterTable(struct masterEntry masterList[], int masterListPoint){
 
 void addEntry(struct masterEntry masterList[], int* masterListPoint,
               struct sockaddr_in clientAddr, struct fileEntry fileData){
+  printf("In add Entry %i\n", *masterListPoint);
   masterList[*(masterListPoint)].address = clientAddr.sin_addr;
   masterList[*(masterListPoint)].port = clientAddr.sin_port;
   masterList[*(masterListPoint)].fileData = fileData;
@@ -62,7 +63,6 @@ void ls(int clientFd, struct sockaddr_in* clientAddr, int* length,
   int i;
   masterListPoint++;
   int size = sizeof(struct masterEntry) * masterListPoint;
-  printf("size %i\n", size);
   sendto(clientFd, &masterListPoint, sizeof(int), 0,
          (struct sockaddr*) clientAddr, *length);
   sendto(clientFd, masterList, size, 0, (struct sockaddr*) clientAddr,
@@ -74,20 +74,22 @@ void removeEntries(char* name, struct masterEntry masterList[],
   int i;
   // Delete everything in the list
   for(i = 0; i < *masterListPoint; i++){
-    printf("%i %i\n", i, *masterListPoint);
-    printf("%s == %s\n", masterList[i].fileData.host, name);
-    // If it is the last entry, just delete it
-    if(i == *masterListPoint - 1){
+    // If it is the last entry and we need to, just delete it
+    if(i == *masterListPoint - 1 && 
+        !(strcmp(masterList[i].fileData.host, name))){
+      printf("CASE LAST\n");
+      printMasterTable(masterList, *masterListPoint);
       (*masterListPoint)--;
     }
     // If we found matching strings
     else if(strcmp(masterList[i].fileData.host, name) == 0){
+      printf("CASE found\n");
+      printMasterTable(masterList, *masterListPoint);
       masterList[i] = masterList[*masterListPoint - 1];
       // recheck the swap
       i--;
       (*masterListPoint)--;
     }
-    printf("End %i %i\n", i, *masterListPoint);
   }
   printf("Updated List\n");
   printMasterTable(masterList, *masterListPoint);
@@ -116,7 +118,7 @@ int main(int argc, char* argv[]){
   struct sockaddr_in clientAddr;
   struct masterEntry masterList[MAX_CLIENTS * MAX_FILE_COUNT];
   socklen_t clientLen;
-  char mesg[1024] = "TEST\n";
+  char mesg[MAX_FILE_COUNT * sizeof(struct fileEntry)] = "TEST\n";
   char nameDel[MAX_NAME_SIZE];
 
   listenFd = socket(AF_INET, SOCK_STREAM, 0);
@@ -137,8 +139,6 @@ int main(int argc, char* argv[]){
     length = sizeof(clientAddr);
     size = recvfrom(clientFd, mesg, 1024, 0, (struct sockaddr *) &clientAddr,
                     &length);
-    printf("Got packet\n");
-    printf("%c\n", mesg[0]);
     switch(mesg[0]){
       case '1':
       entry.clientAddr = clientAddr;
@@ -153,23 +153,21 @@ int main(int argc, char* argv[]){
                       sizeof(struct fileEntry) * MAX_FILE_COUNT,
                       0, (struct sockaddr *) &clientAddr, &length);
       // Iterating through the table
-      printf("Before table point %i\n", size);
-      for(i = 0; i <= size; i += sizeof(struct fileEntry)){
+      printf("before adding %i\n", masterListPoint);
+      for(i = 0; i < size; i += sizeof(struct fileEntry)){
         struct fileEntry* currentEntry = (struct fileEntry*) (mesg + i);
+        printf("size %i\n", currentEntry->size);
         // Register the data in a new table
         addEntry(masterList, &masterListPoint, clientAddr, *currentEntry);
       }
       printMasterTable(masterList, masterListPoint);
-      masterListPoint--;
 
       break;
       // The ls case
       case '2':
-      printf("ls requested\n");
       ls(clientFd, &clientAddr, &length, masterList, masterListPoint);
       break;
       case '3':
-      printf(":%s:\n", mesg);
       strcpy(nameDel, (mesg+1));
       clientExit(nameDel, masterList, &masterListPoint);
       break;

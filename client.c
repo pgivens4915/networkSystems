@@ -64,7 +64,6 @@ void ls(int serverFd, int size, struct sockaddr_in* serverAddr,
   maxLength = sizeof(struct masterEntry) * MAX_FILE_COUNT * MAX_CLIENTS;
   length = recvfrom(serverFd, masterList, maxLength, 0,
            (struct sockaddr*) serverAddr, &size);
-  printf("length %i\n", length);
   printMasterTable(masterList, *masterListPoint);
 }
 
@@ -93,19 +92,18 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
   while((ent = readdir(dir)) != NULL){
     // If it is not a hidden file
     if((ent->d_name)[0] != '.'){
-      printf("%s ", ent->d_name);
       stat(ent->d_name, &st);
       fileSize = (long long) st.st_size;
-      printf("%i\n", (int)st.st_size);
       // Copying the file name into the table
       strcpy(fileTable[fileTablePointer].name, ent->d_name);
       // copying the hostname
       strcpy(fileTable[fileTablePointer].host, name);
       fileTable[fileTablePointer].size = fileSize;
-      fileTable[fileTablePointer].port = transferPort ;
+      fileTable[fileTablePointer].port = transferPort;
       fileTablePointer++;
     }
   }
+  printf("Size %i\n", fileTable[fileTablePointer - 1].size);
   // Sending the table
   sendto(serverFd, fileTable, sizeof(struct fileEntry) * fileTablePointer, 0,
         (struct sockaddr*) serverAddr, size);
@@ -256,7 +254,6 @@ int main(int argc, char* argv[]){
         serverFd = socket(AF_INET, SOCK_STREAM, 0);
         connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
         strcat(messageType, name); 
-        printf(":%s:", messageType);
         send(serverFd, messageType, sizeof(char) * MAX_NAME_SIZE + 1, 0);
         close(serverFd);
         return(0);
@@ -276,12 +273,10 @@ int main(int argc, char* argv[]){
       FILE* fp;
       struct stat stat;
       requestSize = sizeof(requestAddr);
-      printf("Getting a message\n");
       connectionFd = accept(transferFd, (struct sockaddr*) &requestAddr,
                             &requestSize);
       recvfrom(connectionFd, message, 1024, 0,
                (struct sockaddr *) &requestAddr, &requestSize);
-      printf("%s\n", message);
       fp = fopen(message, "r");
       // Send dat file!
       fstat(fileno(fp), &stat);
@@ -289,7 +284,6 @@ int main(int argc, char* argv[]){
       send(connectionFd, &size, sizeof(int), 0);
       sendfile(connectionFd, fileno(fp), 0, stat.st_size);
       perror("ERROR ");
-      printf("End message\n");
     }
   }
 }
