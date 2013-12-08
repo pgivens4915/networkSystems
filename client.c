@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/sendfile.h>
 #include <unistd.h>
 #include <sys/select.h>
 #include <stdlib.h>
@@ -133,11 +134,13 @@ struct sockaddr_in resolveAddress(struct masterEntry masterList[],
 // Runs the get command
 void get(struct masterEntry masterList[], int masterListPoint){
   char fileName[MAX_NAME_SIZE];
-  char mesg[10] = "echo\n";
+  char mesg[50] = "echo\n";
   int fileSock;
+  FILE* fp;
   struct sockaddr_in fileAddr;
   printf("Enter filename :\n");
   scanf("%s", fileName);
+  fp = fopen("OUTPUT", "w");
   fileAddr = resolveAddress(masterList, masterListPoint, fileName);
   // If file not found
   if(fileAddr.sin_port == 0){
@@ -147,8 +150,13 @@ void get(struct masterEntry masterList[], int masterListPoint){
   fileSock = socket(AF_INET, SOCK_STREAM, 0);
   connect(fileSock, (struct sockaddr*) &fileAddr, sizeof(fileAddr));
   // +1 for the charstop?
-  sendto(fileSock, fileName, strlen(fileName) + 1, 0, (struct sockaddr*) &fileAddr,
-         sizeof(fileAddr));
+  sendto(fileSock, fileName, strlen(fileName) + 1, 0,
+         (struct sockaddr*) &fileAddr, sizeof(fileAddr));
+  recv(fileSock, mesg, 50, 0);
+  perror("ERROR: ");
+  printf("->%c<-\n", mesg[0]);
+  printf("Transfer Done\n");
+
 }
 
 int main(int argc, char* argv[]){
@@ -244,6 +252,7 @@ int main(int argc, char* argv[]){
       struct sockaddr_in requestAddr;
       int requestSize;
       int connectionFd;
+      FILE* fp;
       requestSize = sizeof(requestAddr);
       printf("Getting a message\n");
       connectionFd = accept(transferFd, (struct sockaddr*) &requestAddr,
@@ -251,6 +260,10 @@ int main(int argc, char* argv[]){
       recvfrom(connectionFd, message, 1024, 0,
                (struct sockaddr *) &requestAddr, &requestSize);
       printf("%s\n", message);
+      fp = fopen(message, "r");
+      // Send dat file!
+      sendfile(connectionFd, fileno(fp), 0, 50);
+      perror("ERROR ");
       printf("End message\n");
     }
   }
