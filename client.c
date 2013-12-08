@@ -183,12 +183,12 @@ int main(int argc, char* argv[]){
   fd_set master;
   fd_set read_fds;
   size_t length;
+  socklen_t channellen = sizeof(struct sockaddr_in);
 
   // Copying name from command line
   strcpy(name, argv[1]);
   // Getting the port number
   portNumber = atoi(argv[2]);
-  transferPort = atoi(argv[3]);
 
   // DEBUG message
   sprintf(message, "SENDING\n");
@@ -205,18 +205,22 @@ int main(int argc, char* argv[]){
   connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
 
   size = sizeof(serverAddr);
-  // Registering the clients name
-  registerName(serverFd, &serverAddr, size, name, transferPort);
-  close(serverFd);
 
   // Opening a port for file transfer
   transferFd = socket(AF_INET, SOCK_STREAM, 0);
   bzero(&transferAddr, sizeof(transferAddr));
   transferAddr.sin_family = AF_INET;
   transferAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  transferAddr.sin_port = htons(transferPort);
   bind(transferFd, (struct sockaddr*) &transferAddr, sizeof(transferAddr));
+  getsockname(transferFd, (struct sockaddr*) &transferAddr, &channellen);
+  transferPort = ntohs(transferAddr.sin_port);
+  printf("Port %i\n", transferPort);
   listen(transferFd, 1024);
+
+
+  // Registering the clients name
+  registerName(serverFd, &serverAddr, size, name, transferPort);
+  close(serverFd);
 
   printf("Init over\n");
   printf("CLIENT>");
