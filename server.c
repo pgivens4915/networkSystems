@@ -51,7 +51,6 @@ void printMasterTable(struct masterEntry masterList[], int masterListPoint){
 
 void addEntry(struct masterEntry masterList[], int* masterListPoint,
               struct sockaddr_in clientAddr, struct fileEntry fileData){
-  printf("In add Entry %i\n", *masterListPoint);
   masterList[*(masterListPoint)].address = clientAddr.sin_addr;
   masterList[*(masterListPoint)].port = clientAddr.sin_port;
   masterList[*(masterListPoint)].fileData = fileData;
@@ -77,14 +76,10 @@ void removeEntries(char* name, struct masterEntry masterList[],
     // If it is the last entry and we need to, just delete it
     if(i == *masterListPoint - 1 && 
         !(strcmp(masterList[i].fileData.host, name))){
-      printf("CASE LAST\n");
-      printMasterTable(masterList, *masterListPoint);
       (*masterListPoint)--;
     }
     // If we found matching strings
     else if(strcmp(masterList[i].fileData.host, name) == 0){
-      printf("CASE found\n");
-      printMasterTable(masterList, *masterListPoint);
       masterList[i] = masterList[*masterListPoint - 1];
       // recheck the swap
       i--;
@@ -156,7 +151,6 @@ int main(int argc, char* argv[]){
       printf("before adding %i\n", masterListPoint);
       for(i = 0; i < size; i += sizeof(struct fileEntry)){
         struct fileEntry* currentEntry = (struct fileEntry*) (mesg + i);
-        printf("size %i\n", currentEntry->size);
         // Register the data in a new table
         addEntry(masterList, &masterListPoint, clientAddr, *currentEntry);
       }

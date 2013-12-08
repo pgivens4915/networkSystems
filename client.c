@@ -103,7 +103,6 @@ void registerName(int serverFd, struct sockaddr_in* serverAddr, int size,
       fileTablePointer++;
     }
   }
-  printf("Size %i\n", fileTable[fileTablePointer - 1].size);
   // Sending the table
   sendto(serverFd, fileTable, sizeof(struct fileEntry) * fileTablePointer, 0,
         (struct sockaddr*) serverAddr, size);
@@ -140,7 +139,7 @@ void get(struct masterEntry masterList[], int masterListPoint){
   struct sockaddr_in fileAddr;
   printf("Enter filename :\n");
   scanf("%s", fileName);
-  fp = fopen("OUTPUT", "w");
+  fp = fopen(fileName, "w");
   fileAddr = resolveAddress(masterList, masterListPoint, fileName);
   // If file not found
   if(fileAddr.sin_port == 0){
@@ -283,7 +282,6 @@ int main(int argc, char* argv[]){
       size = stat.st_size;
       send(connectionFd, &size, sizeof(int), 0);
       sendfile(connectionFd, fileno(fp), 0, stat.st_size);
-      perror("ERROR ");
     }
   }
 }
