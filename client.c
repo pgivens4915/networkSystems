@@ -250,6 +250,17 @@ int main(int argc, char* argv[]){
       else if(strcmp(message, "get\n") == 0){
         get(masterList, masterListPoint);
       }
+      else if(strcmp(message, "exit\n") == 0){
+        // 3 means exit
+        char messageType[1 + MAX_NAME_SIZE] = "3";
+        serverFd = socket(AF_INET, SOCK_STREAM, 0);
+        connect(serverFd, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+        strcat(messageType, name); 
+        printf(":%s:", messageType);
+        send(serverFd, messageType, sizeof(char) * MAX_NAME_SIZE + 1, 0);
+        close(serverFd);
+        return(0);
+      }
       else{
         printf("Command not recognized\n");
       }

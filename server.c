@@ -69,6 +69,10 @@ void ls(int clientFd, struct sockaddr_in* clientAddr, int* length,
          *length);
 }
 
+void clientExit(char* name){
+  printf("Deleting %s\n", name);
+}
+
 int main(int argc, char* argv[]){
   int listenFd;
   int clientFd;
@@ -86,6 +90,7 @@ int main(int argc, char* argv[]){
   struct masterEntry masterList[MAX_CLIENTS * MAX_FILE_COUNT];
   socklen_t clientLen;
   char mesg[1024] = "TEST\n";
+  char nameDel[MAX_NAME_SIZE];
 
   listenFd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -135,6 +140,11 @@ int main(int argc, char* argv[]){
       case '2':
       printf("ls requested\n");
       ls(clientFd, &clientAddr, &length, masterList, masterListPoint);
+      break;
+      case '3':
+      printf(":%s:\n", mesg);
+      strcpy(nameDel, (mesg+1));
+      clientExit(nameDel);
       break;
     }
 
