@@ -134,7 +134,7 @@ struct sockaddr_in resolveAddress(struct masterEntry masterList[],
 // Runs the get command
 void get(struct masterEntry masterList[], int masterListPoint){
   char fileName[MAX_NAME_SIZE];
-  char mesg[50] = "echo\n";
+  char mesg[50000] = "echo\n";
   int fileSock;
   FILE* fp;
   struct sockaddr_in fileAddr;
@@ -152,9 +152,12 @@ void get(struct masterEntry masterList[], int masterListPoint){
   // +1 for the charstop?
   sendto(fileSock, fileName, strlen(fileName) + 1, 0,
          (struct sockaddr*) &fileAddr, sizeof(fileAddr));
-  while (recv(fileSock, mesg, 50, 0) > 0){
+  while (recv(fileSock, mesg, 50000, 0) > 0){
     printf("%s", mesg);
+    fprintf(fp, "%s", mesg);
   }
+  fflush(fp);
+  fclose(fp);
   printf("Transfer Done\n");
 
 }
